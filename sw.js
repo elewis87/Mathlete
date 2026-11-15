@@ -1,5 +1,5 @@
 // Mathlete offline cache. Bump VERSION whenever a file in this folder changes.
-const VERSION = "mathlete-v7";
+const VERSION = "mathlete-v8";
 const CORE = ["./", "index.html", "cloud.js", "firebase-config.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 const CACHEABLE = u => u.origin === self.location.origin || u.hostname === "fonts.googleapis.com" || u.hostname === "fonts.gstatic.com" ||
   (u.hostname === "www.gstatic.com" && u.pathname.startsWith("/firebasejs/"));

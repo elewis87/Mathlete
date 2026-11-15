@@ -622,6 +622,12 @@ const DEFAULTS = {
 ADV.forEach(g=>{ DEFAULTS[g]={level:0, time: g==="long" ? 180 : 120, blank:"answer"}; });
 
 /* ---------- players and saved progress ---------- */
+const fitMax = t => { const m=Math.max(0,...t); return m<=10 ? 10 : m<=12 ? 12 : 15; };
+function inDeck(g,c,r){   /* is this fact part of the game as it is set up now? */
+  if(g==="mul"){ const lo=c.tables.includes(0)?0:1; return (c.tables.includes(r.a) && r.b>=lo && r.b<=c.max) || (c.tables.includes(r.b) && r.a>=lo && r.a<=c.max); }
+  if(g==="div") return c.tables.includes(r.b) && r.c<=c.max;
+  return true;
+}
 function normCfg(c){
   const out={}; c=c||{};
   ORDER.forEach(g=>{
@@ -631,7 +637,7 @@ function normCfg(c){
     if(GAMES[g].levels) out[g].level=Math.min(GAMES[g].levels.length-1, Math.max(0, out[g].level|0));
     if(GAMES[g].kind==="tables"){
       if(!Array.isArray(out[g].tables)) out[g].tables=clone(DEFAULTS[g].tables);
-      if(!had){ const m=Math.max(0,...out[g].tables); out[g].max = m<=10 ? 10 : m<=12 ? 12 : 15; }  /* match an older setup to its tables */
+      if(!had || !out[g].capv){ out[g].max=fitMax(out[g].tables); out[g].capv=1; }   /* the cap follows the tables unless it was set on purpose afterwards */
     }
   });
   return out;
@@ -648,7 +654,9 @@ function normalize(p){
     Object.keys(p.miss).forEach(t=>{ const m=/^(\d+) (.) (\d+) = (\d+)$/.exec(t), g=m && OPS.find(o=>GAMES[o].sym===m[2]);
       if(g) review[g+":"+m[1]+"_"+m[3]]={g,a:+m[1],b:+m[3],c:+m[4],streak:0}; });
   }
-  return { name:String(p.name||"Player").slice(0,14), hue:(p.hue|0)%4, created:p.created||Date.now(), cfg:normCfg(p.cfg),
+  const ncfg=normCfg(p.cfg);
+  ["mul","div"].forEach(g=>{ if(!(p.cfg && p.cfg[g] && p.cfg[g].capv)) Object.keys(review).forEach(k=>{ if(review[k].g===g && !inDeck(g,ncfg[g],review[k])) delete review[k]; }); });
+  return { name:String(p.name||"Player").slice(0,14), hue:(p.hue|0)%4, created:p.created||Date.now(), cfg:ncfg,
     bests:p.bests||{}, games:p.games||{}, recent:Array.isArray(p.recent)?p.recent:[], review, pin:/^\d{4}$/.test(p.pin||"") ? p.pin : "" };
 }
 let profiles = {}; { const raw=store.get("ms.profiles",{}); Object.keys(raw).forEach(id=>{ profiles[id]=normalize(raw[id]); }); }
@@ -946,6 +954,7 @@ function renderSetup(){
       b.setAttribute("aria-pressed", String(c.tables.includes(v)));
       b.addEventListener("click",()=>{
         c.tables = c.tables.includes(v) ? c.tables.filter(x=>x!==v) : c.tables.concat(v).sort((x,y)=>x-y);
+        c.max=fitMax(c.tables);
         saveLocal(); renderSetup();
       });
       chips.appendChild(b);
@@ -956,7 +965,7 @@ function renderSetup(){
     G.presets.forEach(([label,list,max],i)=>{
       const b=document.createElement("button"); b.className="pill"; b.id="preset-"+i; b.textContent=label;
       b.setAttribute("aria-pressed", String(list.join(".")===key && (max==null || max===c.max)));
-      b.addEventListener("click",()=>{ c.tables=list.slice(); if(max!=null) c.max=max; saveLocal(); renderSetup(); });
+      b.addEventListener("click",()=>{ c.tables=list.slice(); c.max = max!=null ? max : fitMax(list); saveLocal(); renderSetup(); });
       pr.appendChild(b);
     });
     g1.appendChild(pr);
@@ -993,7 +1002,7 @@ const keyOf = p => p.gen ? p.g+":"+p.q : p.g+":"+p.a+"_"+p.b;
 function factText(p){ return p.gen ? plain(p.q).replace(B,fmtAns(p.ans).trim()) : p.a+" "+symOf(p)+" "+p.b+" = "+p.c; }
 function opsInPlay(){ return game==="mix" ? cfg.mix.ops.slice() : [game]; }
 function reviewFor(p,ops){
-  return Object.keys(p.review).filter(k=>ops.includes(p.review[k].g)).map(k=>{ const r=p.review[k]; return r.q!=null ? {g:r.g,gen:true,q:r.q,ans:r.ans,review:true} : {g:r.g,a:r.a,b:r.b,c:r.c,review:true}; });
+  return Object.keys(p.review).filter(k=>{ const r=p.review[k]; return ops.includes(r.g) && (r.q!=null || inDeck(r.g,cfg[r.g],r)); }).map(k=>{ const r=p.review[k]; return r.q!=null ? {g:r.g,gen:true,q:r.q,ans:r.ans,review:true} : {g:r.g,a:r.a,b:r.b,c:r.c,review:true}; });
 }
 function startRound(){
   if(!P()){ renderWho(); show("who"); return; }
