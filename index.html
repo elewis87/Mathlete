@@ -727,7 +727,7 @@ function detach(){
 function startApp(){ if(who && profiles[who]){ cfg=P().cfg; renderHome(); show("home"); } else { who=null; renderWho(); show("who"); } }
 window.MathleteApp = { onState(st){
   acct=st;
-  if(st.status==="off"){ if(mode!=="local") setMode("local"); if(screen==="acct") startApp(); return; }
+  if(st.status==="off"){ if(mode!=="family") mode="local"; if(screen==="acct") startApp(); return; }
   if(st.status==="in"){ setMode("family"); attach(st); if(screen==="acct") startApp(); else refresh(); return; }
   if(st.status==="needFamily"){ renderAcct("family"); show("acct"); return; }
   if(st.status==="out"){
