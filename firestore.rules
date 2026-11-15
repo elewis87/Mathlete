@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function realAccount() { return signedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous'; }
+    function isMember(fid) { return signedIn() && exists(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid)); }
+    function isParent(fid) { return isMember(fid) && get(/databases/$(database)/documents/families/$(fid)/members/$(request.auth.uid)).data.role == 'parent'; }
+    function family(fid) { return get(/databases/$(database)/documents/families/$(fid)).data; }
+    function keys(fid) { return get(/databases/$(database)/documents/families/$(fid)/private/keys).data; }
+
+    // Which family a signed-in account or device belongs to.
+    match /users/{uid} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+    // Family code lookup. Codes can be fetched one at a time but never listed.
+    match /codes/{code} {
+      allow get: if signedIn();
+      allow create: if realAccount() && family(request.resource.data.fid).owner == request.auth.uid;
+    }
+    match /families/{fid} {
+      allow create: if realAccount() && request.resource.data.owner == request.auth.uid;
+      allow get: if isMember(fid);
+      allow update: if isParent(fid) && request.resource.data.owner == resource.data.owner;
+
+      // Join codes: parents only.
+      match /private/{docId} {
+        allow read, write: if isParent(fid);
+      }
+      // One entry per parent account or linked kid device. Joining requires the matching code.
+      match /members/{uid} {
+        allow get: if signedIn() && (request.auth.uid == uid || isParent(fid));
+        allow list: if isParent(fid);
+        allow create: if signedIn() && request.auth.uid == uid && (
+          (request.resource.data.role == 'parent' && realAccount() && family(fid).owner == uid) ||
+          (request.resource.data.role == 'parent' && realAccount() && request.resource.data.code == keys(fid).parentCode) ||
+          (request.resource.data.role == 'device' && request.resource.data.code == keys(fid).joinCode));
+        allow delete: if signedIn() && (request.auth.uid == uid || isParent(fid));
+      }
+      // Player profiles and progress: anyone in the family can read and save; only parents delete.
+      match /kids/{kid} {
+        allow read, create, update: if isMember(fid);
+        allow delete: if isParent(fid);
+      }
+    }
+  }
+}

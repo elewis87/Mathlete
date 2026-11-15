@@ -72,6 +72,15 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
   font:inherit;font-size:1.05rem;padding:0 14px}
 .addrow button{height:52px;padding:0 18px;border-radius:14px;background:var(--ink);color:var(--bg);font-family:var(--display);font-weight:600;white-space:nowrap}
 .foot{color:var(--muted);font-size:.82rem;margin:0}
+.stack{display:flex;flex-direction:column;gap:12px}
+.stack h2{font-size:1.5rem}
+.stack .note,.wrap > .group .note{color:var(--muted);font-size:.9rem;margin:0}
+.field{width:100%;height:52px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:1.05rem;padding:0 14px}
+.btn{height:54px;border-radius:14px;background:var(--ink);color:var(--bg);font-family:var(--display);font-weight:600;font-size:1.15rem}
+.btn.alt{background:var(--surface);color:var(--ink);border:1.5px solid var(--line)}
+.link{align-self:flex-start;color:var(--muted);text-decoration:underline;font-size:.9rem;padding:8px 0}
+.err{color:var(--bad);font-size:.9rem;min-height:1.3em;margin:0}
+.codebox{font-family:var(--display);font-weight:600;font-size:1.5rem;letter-spacing:.1em}
 
 /* Home */
 .homebar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
@@ -221,7 +230,7 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
       <p>Who is playing?</p>
     </header>
     <div class="players" id="players"></div>
-    <div class="group">
+    <div class="group" id="add-group">
       <h3 id="add-title">Add a player</h3>
       <form class="addrow" id="add-form">
         <input id="new-name" type="text" maxlength="14" autocomplete="off" autocapitalize="words" placeholder="First name" aria-label="Player name">
@@ -229,6 +238,58 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
       </form>
     </div>
     <p class="foot" id="sync-who"></p>
+    <div class="row" id="who-actions"></div>
+  </div>
+</section>
+
+<section class="screen" id="acct" hidden>
+  <div class="wrap">
+    <header class="brand">
+      <h1>Mathlete</h1>
+      <p>Timed math practice for the whole family.</p>
+    </header>
+    <div class="stack" id="acct-body"></div>
+  </div>
+</section>
+
+<section class="screen" id="pin" hidden>
+  <div class="wrap">
+    <div class="top">
+      <button class="back" id="pin-back" aria-label="Back to players">&#8592;</button>
+      <h2 id="pin-name"></h2>
+    </div>
+    <form class="stack" id="pin-enter">
+      <p class="note">Type your 4-digit PIN.</p>
+      <input class="field codebox" id="pin-in" type="password" inputmode="numeric" maxlength="4" autocomplete="off" aria-label="PIN">
+      <button class="btn" type="submit" id="pin-go">Play</button>
+      <p class="err" id="pin-msg"></p>
+    </form>
+  </div>
+</section>
+
+<section class="screen" id="parent" hidden>
+  <div class="wrap">
+    <div class="top">
+      <button class="back" id="par-back" aria-label="Back to players">&#8592;</button>
+      <h2 id="par-family">Parent dashboard</h2>
+    </div>
+    <div class="group">
+      <h3>Players</h3>
+      <p class="note">Tap a player to see progress, set a PIN, or remove them.</p>
+      <div class="players" id="par-kids"></div>
+    </div>
+    <div class="group">
+      <h3>Family code for kids' devices</h3>
+      <p class="note">On a kid's phone or iPad, open Mathlete, choose "This is a kid's device," and type this code.</p>
+      <span class="codebox" id="par-join"></span>
+    </div>
+    <div class="group">
+      <h3>Parent code for another parent</h3>
+      <p class="note">A second parent creates their own account, then joins with the family code and this parent code.</p>
+      <span class="codebox" id="par-pcode"></span>
+    </div>
+    <p class="foot" id="par-email"></p>
+    <button class="danger" id="par-out">Sign out on this device</button>
   </div>
 </section>
 
@@ -341,10 +402,20 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
       <h3>Recent rounds</h3>
       <ul class="rounds" id="pg-recent"></ul>
     </div>
+    <div class="group" id="pg-pin-group" hidden>
+      <h3>Sign-in PIN</h3>
+      <p class="note">Four digits this player types on a kid's device. Leave it empty for no PIN.</p>
+      <form class="addrow" id="pin-form">
+        <input id="pin-set" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="No PIN" aria-label="PIN for this player">
+        <button type="submit">Save</button>
+      </form>
+      <p class="foot" id="pin-saved"></p>
+    </div>
     <button class="danger" id="pg-delete">Delete this player</button>
   </div>
 </section>
 
+<script>window.MATHLETE_CLOUD=true;</script>
 <script>
 (function(){
 "use strict";
@@ -578,7 +649,7 @@ function normalize(p){
       if(g) review[g+":"+m[1]+"_"+m[3]]={g,a:+m[1],b:+m[3],c:+m[4],streak:0}; });
   }
   return { name:String(p.name||"Player").slice(0,14), hue:(p.hue|0)%4, created:p.created||Date.now(), cfg:normCfg(p.cfg),
-    bests:p.bests||{}, games:p.games||{}, recent:Array.isArray(p.recent)?p.recent:[], review };
+    bests:p.bests||{}, games:p.games||{}, recent:Array.isArray(p.recent)?p.recent:[], review, pin:/^\d{4}$/.test(p.pin||"") ? p.pin : "" };
 }
 let profiles = {}; { const raw=store.get("ms.profiles",{}); Object.keys(raw).forEach(id=>{ profiles[id]=normalize(raw[id]); }); }
 let dirty = store.get("ms.dirty",{});
@@ -615,11 +686,12 @@ function onSnap(snap){
 }
 function refresh(){
   syncNote();
-  if(who && !profiles[who]){ who=null; store.set("ms.who",null); if(screen!=="play"){ renderWho(); show("who"); } return; }
-  if(screen==="who") renderWho(); else if(screen==="home") renderHome(); else if(screen==="progress") renderProgress();
+  if(who && !profiles[who]){ who=null; store.set("ms.who",null); if(screen!=="play" && screen!=="acct" && screen!=="parent"){ renderWho(); show("who"); return; } }
+  if(screen==="who") renderWho(); else if(screen==="home") renderHome(); else if(screen==="progress") renderProgress(); else if(screen==="parent") renderParent();
 }
 function syncNote(){
-  const t = live ? "Progress is saved online and shows up on every device that opens this page under your account."
+  const t = mode==="family" ? (live ? "Signed in. Progress syncs across your family\u2019s devices." : "Signed in. Changes sync when this device is online.")
+          : live ? "Progress is saved online and shows up on every device that opens this page under your account."
                  : "Progress is saved on this device.";
   $("#sync-who").textContent=t; $("#sync-home").textContent=t;
 }
@@ -630,6 +702,117 @@ if("serviceWorker" in navigator){ window.addEventListener("load",()=>{ navigator
     if(d){ db=d; d.collection("profiles").onSnapshot(onSnap, ()=>{ db=null; live=false; syncNote(); }); }
   }catch(e){ db=null; }
 })();
+
+/* ---------- family sign-in (website version only; inert inside Claude) ---------- */
+const CLOUD = !!window.MATHLETE_CLOUD;
+let mode = store.get("ms.mode", null);            /* null = not chosen yet, "local", or "family" */
+let role = mode==="family" ? store.get("ms.role","") : "";
+let acct = {status:"wait"}, unsub = null, attached = "", viewId = null, progFrom = "home", pinFor = null;
+const cloud = () => window.MathleteCloud || null;
+const canManage = () => mode!=="family" || role==="parent";
+const pretty = c => c ? String(c).replace(/^(.{4})(.+)$/,"$1-$2") : "–";
+function setMode(m){ mode=m; store.set("ms.mode",m); }
+function attach(st){
+  role=st.role; store.set("ms.role",role);
+  const idt=st.fid+"|"+st.role; if(attached===idt) return;
+  if(unsub){ try{ unsub(); }catch(e){} }
+  attached=idt; db=st.db; pushed=false; live=false;
+  unsub=db.collection("profiles").onSnapshot(onSnap, ()=>{ db=null; live=false; attached=""; syncNote(); });
+}
+function detach(){
+  if(unsub){ try{ unsub(); }catch(e){} }
+  unsub=null; attached=""; db=null; live=false; role=""; store.set("ms.role","");
+  profiles={}; dirty={}; who=null; cfg=null; saveLocal(); store.set("ms.who",null);
+}
+function startApp(){ if(who && profiles[who]){ cfg=P().cfg; renderHome(); show("home"); } else { who=null; renderWho(); show("who"); } }
+window.MathleteApp = { onState(st){
+  acct=st;
+  if(st.status==="off"){ if(mode!=="local") setMode("local"); if(screen==="acct") startApp(); return; }
+  if(st.status==="in"){ setMode("family"); attach(st); if(screen==="acct") startApp(); else refresh(); return; }
+  if(st.status==="needFamily"){ renderAcct("family"); show("acct"); return; }
+  if(st.status==="out"){
+    if(mode==="family"){ detach(); setMode(null); }
+    if(mode!=="local" && screen!=="play"){ renderAcct("start"); show("acct"); }
+    return;
+  }
+  if(st.status==="error" && screen==="acct"){ const m=$("#acct-msg"); if(m) m.textContent=st.error||"Could not reach the server."; }
+}};
+async function run(fn){
+  const m=$("#acct-msg"), c=cloud();
+  if(!c){ if(m) m.textContent="Still connecting. Check the internet connection and try again."; return; }
+  if(m) m.textContent="Working…";
+  let err=null; try{ err=await fn(c); }catch(e){ err="Something went wrong. Try again."; }
+  const m2=$("#acct-msg"); if(m2) m2.textContent=err||"";
+}
+function renderAcct(view){
+  const b=$("#acct-body"), msg='<p class="err" id="acct-msg"></p>';
+  const on=(id,fn)=>{ const el=$("#"+id); if(el) el.addEventListener("click",fn); };
+  if(view==="start"){
+    b.innerHTML='<h2>Set up this device</h2><p class="note">Sign in once on each device so every player’s progress follows them.</p>'+
+      '<button class="btn" id="a-parent">I’m a parent</button><button class="btn alt" id="a-device">This is a kid’s device</button>'+
+      '<button class="link" id="a-local">Use without an account</button>'+msg;
+    on("a-parent",()=>renderAcct("parent")); on("a-device",()=>renderAcct("device"));
+    on("a-local",()=>{ setMode("local"); startApp(); });
+  } else if(view==="parent"){
+    b.innerHTML='<h2>Parent sign-in</h2>'+
+      '<input class="field" id="a-email" type="email" autocomplete="email" autocapitalize="none" placeholder="Email" aria-label="Email">'+
+      '<input class="field" id="a-pass" type="password" autocomplete="current-password" placeholder="Password (6 or more characters)" aria-label="Password">'+
+      '<button class="btn" id="a-signin">Sign in</button><button class="btn alt" id="a-signup">Create a parent account</button>'+msg+
+      '<button class="link" id="a-reset">Email me a password reset link</button><button class="link" id="a-back">Back</button>';
+    const v=()=>[$("#a-email").value.trim(), $("#a-pass").value];
+    on("a-signin",()=>run(c=>c.signIn(...v()))); on("a-signup",()=>run(c=>c.signUp(...v())));
+    on("a-reset",()=>run(async c=>(await c.reset(v()[0])) || "Reset email sent. Check your inbox."));
+    on("a-back",()=>renderAcct("start"));
+  } else if(view==="family"){
+    b.innerHTML='<h2>Your family</h2><p class="note">Signed in as '+esc(acct.email||"a parent")+'.</p>'+
+      '<div class="group"><h3>Start a new family</h3><input class="field" id="a-fname" maxlength="24" placeholder="Family name" aria-label="Family name"><button class="btn" id="a-create">Create family</button></div>'+
+      '<div class="group"><h3>Join a family that already exists</h3><p class="note">Ask the other parent for both codes on their Parent dashboard.</p>'+
+      '<input class="field" id="a-jcode" autocapitalize="characters" autocomplete="off" placeholder="Family code" aria-label="Family code">'+
+      '<input class="field" id="a-pcode" autocapitalize="characters" autocomplete="off" placeholder="Parent code" aria-label="Parent code">'+
+      '<button class="btn alt" id="a-join">Join as a parent</button></div>'+msg+'<button class="link" id="a-out">Sign out</button>';
+    on("a-create",()=>run(c=>c.createFamily($("#a-fname").value.trim()||"Our")));
+    on("a-join",()=>run(c=>c.joinParent($("#a-jcode").value, $("#a-pcode").value)));
+    on("a-out",()=>run(c=>c.signOut()));
+  } else {
+    b.innerHTML='<h2>Link this device</h2><p class="note">Type the family code shown on a parent’s Parent dashboard.</p>'+
+      '<input class="field codebox" id="a-code" autocapitalize="characters" autocomplete="off" maxlength="9" placeholder="Family code" aria-label="Family code">'+
+      '<button class="btn" id="a-link">Link this device</button>'+msg+'<button class="link" id="a-back">Back</button>';
+    on("a-link",()=>run(c=>c.linkDevice($("#a-code").value))); on("a-back",()=>renderAcct("start"));
+  }
+}
+function renderParent(){
+  if(!(mode==="family" && role==="parent")){ startApp(); return; }
+  const f=acct.family||{};
+  $("#par-family").textContent=(f.name||"Family")+" family";
+  $("#par-join").textContent=pretty(f.joinCode); $("#par-pcode").textContent=pretty(f.parentCode);
+  $("#par-email").textContent=acct.email ? "Signed in as "+acct.email+"." : "";
+  const box=$("#par-kids"); box.innerHTML="";
+  const ids=Object.keys(profiles).sort((a,b)=>profiles[a].created-profiles[b].created);
+  ids.forEach(id=>{
+    const p=profiles[id], t=totals(p), last=p.recent[0], due=Object.keys(p.review).length;
+    const b=document.createElement("button"); b.className="player"; b.id="kid-"+id;
+    b.innerHTML='<span class="av c'+p.hue+'">'+esc(p.name.charAt(0).toUpperCase())+'</span><span><b>'+esc(p.name)+'</b><span class="meta">'+
+      (t.rounds ? t.rounds+(t.rounds===1?" round":" rounds")+" · "+Math.round(100*t.right/Math.max(1,t.count))+"% correct · "+due+" to review"+(last?" · last played "+day(last.at):"") : "No rounds yet")+
+      " · "+(p.pin?"PIN set":"no PIN")+"</span></span>";
+    b.addEventListener("click",()=>{ progFrom="parent"; renderProgress(id); show("progress"); });
+    box.appendChild(b);
+  });
+  if(!ids.length) box.innerHTML='<p class="foot">No players yet. Go back and add one.</p>';
+  const o=$("#par-out"); o.textContent="Sign out on this device"; o.dataset.armed="";
+}
+function armed(b,label,again){   /* two taps for anything destructive */
+  if(b.dataset.armed) return true;
+  b.dataset.armed="1"; b.textContent=again; setTimeout(()=>{ b.dataset.armed=""; b.textContent=label; },4000); return false;
+}
+function enter(id){ who=id; store.set("ms.who",id); cfg=P().cfg; renderHome(); show("home"); }
+function pick(id){
+  const p=profiles[id]; if(!p) return;
+  if(mode==="family" && role!=="parent" && p.pin && who!==id){
+    pinFor=id; $("#pin-name").textContent=p.name; $("#pin-in").value=""; $("#pin-msg").textContent=""; show("pin");
+    try{ $("#pin-in").focus(); }catch(e){} return;
+  }
+  enter(id);
+}
 
 /* ---------- helpers ---------- */
 function compress(list){
@@ -666,7 +849,7 @@ function buildDeck(g){
   }
   return d;
 }
-function show(id){ screen=id; ["who","home","setup","play","results","progress"].forEach(s => { $("#"+s).hidden = s!==id; });
+function show(id){ screen=id; ["who","home","setup","play","results","progress","acct","pin","parent"].forEach(s => { $("#"+s).hidden = s!==id; });
   document.body.dataset.game = hueOf(game); $("#"+id).scrollTop = 0; }
 function day(ts){ try{ return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }catch(e){ return ""; } }
 function totals(p){ let rounds=0,right=0,count=0; ORDER.forEach(g=>{ const s=p.games[g]; if(s){ rounds+=s.rounds; right+=s.right; count+=s.count; } }); return {rounds,right,count}; }
@@ -684,8 +867,14 @@ function renderWho(){
     box.appendChild(b);
   });
   $("#add-title").textContent = ids.length ? "Add another player" : "Add a player to start";
+  $("#add-group").hidden=!canManage();
+  if(!ids.length && !canManage()) box.innerHTML='<p class="foot">No players yet. A parent adds players from a parent\u2019s device.</p>';
+  const act=$("#who-actions"); act.innerHTML="";
+  const add=(label,fn)=>{ const b=document.createElement("button"); b.className="pill"; b.textContent=label; b.addEventListener("click",()=>fn(b)); act.appendChild(b); };
+  if(mode==="family" && role==="parent") add("Parent dashboard",()=>{ renderParent(); show("parent"); });
+  if(mode==="family" && role!=="parent") add("Unlink this device",b=>{ if(armed(b,"Unlink this device","Tap again to unlink")){ const c=cloud(); if(c) c.signOut(); } });
+  if(CLOUD && mode==="local" && acct.status!=="off") add("Set up family sign-in",()=>{ setMode(null); renderAcct("start"); show("acct"); });
 }
-function pick(id){ who=id; store.set("ms.who",id); cfg=P().cfg; renderHome(); show("home"); }
 $("#add-form").addEventListener("submit",e=>{
   e.preventDefault();
   const name=$("#new-name").value.trim().slice(0,14); if(!name) { $("#new-name").focus(); return; }
@@ -975,8 +1164,9 @@ function spark(vals){
     '<circle cx="'+end[0].toFixed(1)+'" cy="'+end[1].toFixed(1)+'" r="3.5" fill="var(--accent)"/></svg>';
 }
 const rate = r => scoreOf(r)/Math.max(1,r.secs)*60;
-function renderProgress(){
-  const p=P(); if(!p){ renderWho(); show("who"); return; }
+function renderProgress(id){
+  if(id) viewId=id;
+  const p=profiles[viewId]; if(!p){ if(progFrom==="parent"){ renderParent(); show("parent"); } else { renderWho(); show("who"); } return; }
   const t=totals(p);
   $("#prog-name").textContent=p.name+"’s progress";
   $("#pg-rounds").textContent=t.rounds; $("#pg-right").textContent=t.right;
@@ -1010,18 +1200,33 @@ function renderProgress(){
     rl.appendChild(li);
   });
   $("#pg-recent-group").hidden=!p.recent.length;
-  const del=$("#pg-delete"); del.textContent="Delete this player"; del.dataset.armed="";
+  const del=$("#pg-delete"); del.textContent="Delete this player"; del.dataset.armed=""; del.hidden=!canManage();
+  $("#pg-pin-group").hidden=!(mode==="family" && role==="parent");
+  if(document.activeElement!==$("#pin-set")) $("#pin-set").value=p.pin||"";
 }
 
 /* ---------- wiring ---------- */
 $("#me").addEventListener("click",()=>{ renderWho(); show("who"); });
-$("#to-progress").addEventListener("click",()=>{ renderProgress(); show("progress"); });
-$("#prog-back").addEventListener("click",()=>{ renderHome(); show("home"); });
+$("#to-progress").addEventListener("click",()=>{ progFrom="home"; renderProgress(who); show("progress"); });
+$("#prog-back").addEventListener("click",()=>{ if(progFrom==="parent"){ renderParent(); show("parent"); } else { renderHome(); show("home"); } });
+$("#par-back").addEventListener("click",()=>{ renderWho(); show("who"); });
+$("#par-out").addEventListener("click",e=>{ if(armed(e.currentTarget,"Sign out on this device","Tap again to sign out")){ const c=cloud(); if(c) c.signOut(); } });
+$("#pin-back").addEventListener("click",()=>{ renderWho(); show("who"); });
+$("#pin-enter").addEventListener("submit",e=>{
+  e.preventDefault(); const p=profiles[pinFor];
+  if(p && $("#pin-in").value===p.pin){ $("#pin-in").blur(); enter(pinFor); } else { $("#pin-msg").textContent="That PIN does not match. Try again."; $("#pin-in").value=""; }
+});
+$("#pin-form").addEventListener("submit",e=>{
+  e.preventDefault(); const p=profiles[viewId], v=$("#pin-set").value.trim(); if(!p) return;
+  if(v && !/^\d{4}$/.test(v)){ $("#pin-saved").textContent="Use exactly four digits."; return; }
+  p.pin=v; persist(viewId); $("#pin-set").blur(); $("#pin-saved").textContent = v ? "PIN saved." : "PIN removed.";
+});
 $("#pg-delete").addEventListener("click",e=>{
-  const b=e.currentTarget, p=P(); if(!p) return;
+  const b=e.currentTarget, p=profiles[viewId]; if(!p) return;
   if(!b.dataset.armed){ b.dataset.armed="1"; b.textContent="Tap again to delete "+p.name+" and all of their progress";
     setTimeout(()=>{ b.dataset.armed=""; b.textContent="Delete this player"; },4000); return; }
-  removeProfile(who); who=null; store.set("ms.who",null); renderWho(); show("who");
+  removeProfile(viewId); if(who===viewId){ who=null; store.set("ms.who",null); }
+  if(progFrom==="parent"){ renderParent(); show("parent"); } else { renderWho(); show("who"); }
 });
 $("#setup-back").addEventListener("click",()=>{ renderHome(); show("home"); });
 $("#start").addEventListener("click",()=>{ persist(who); startRound(); });
@@ -1038,8 +1243,9 @@ document.addEventListener("keydown",e=>{
 });
 document.addEventListener("gesturestart",e=>e.preventDefault());
 syncNote();
-if(who){ cfg=P().cfg; renderHome(); show("home"); } else { renderWho(); show("who"); }
+if(CLOUD && mode!=="local" && mode!=="family"){ renderAcct("start"); show("acct"); } else startApp();
 })();
 </script>
+<script type="module" src="cloud.js"></script>
 </body>
 </html>
