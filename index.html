@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Mathlete">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F3F5FA" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F1422" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<title>Mathlete</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lexend:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one-screen app. Home = 2x2 game cards, each game owns one hue.
+   Play = giant equation on top, thumb-reach number pad below (side by side on a landscape iPad). */
+:root{
+  --bg:#F3F5FA; --surface:#FFFFFF; --ink:#16203A; --muted:#5C6884; --line:#DCE1EC; --key:#FFFFFF;
+  --mul:#2F6FED; --div:#0B9384; --add:#DD5A0B; --sub:#C2255C; --mix:#7448D8;
+  --good:#17874A; --bad:#D03535; --on-accent:#FFFFFF;
+  --accent:var(--mul);
+  --display:"Fredoka","Arial Rounded MT Bold","Trebuchet MS",system-ui,sans-serif;
+  --body:"Lexend","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --r:18px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0F1422; --surface:#1A2133; --ink:#EEF1F8; --muted:#9BA6BF; --line:#2C3651; --key:#222B41;
+    --mul:#6FA0FF; --div:#3ECFBC; --add:#FF8E52; --sub:#F4709E; --mix:#B79CFF;
+    --good:#4CCB85; --bad:#FF7A7A; --on-accent:#0F1422;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0F1422; --surface:#1A2133; --ink:#EEF1F8; --muted:#9BA6BF; --line:#2C3651; --key:#222B41;
+  --mul:#6FA0FF; --div:#3ECFBC; --add:#FF8E52; --sub:#F4709E; --mix:#B79CFF;
+  --good:#4CCB85; --bad:#FF7A7A; --on-accent:#0F1422;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.4;
+  touch-action:manipulation;-webkit-text-size-adjust:100%;overflow:hidden}
+[data-game="mul"]{--accent:var(--mul)} [data-game="div"]{--accent:var(--div)}
+[data-game="add"]{--accent:var(--add)} [data-game="sub"]{--accent:var(--sub)} [data-game="mix"]{--accent:var(--mix)}
+button{font:inherit;color:inherit;cursor:pointer;border:0;background:none;padding:0}
+button:focus-visible,input:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+[hidden]{display:none !important}
+.screen{height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.wrap{max-width:680px;margin:0 auto;padding:calc(20px + env(safe-area-inset-top)) max(18px, env(safe-area-inset-left)) calc(28px + env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-right));display:flex;flex-direction:column;gap:20px;min-height:100%}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
+
+/* Players */
+.brand{display:flex;flex-direction:column;gap:2px;padding-top:6px}
+.brand h1{font-size:2.3rem;letter-spacing:-.01em;line-height:1.05}
+.brand p{margin:0;color:var(--muted)}
+.players{display:flex;flex-direction:column;gap:10px}
+.player{display:flex;align-items:center;gap:14px;padding:12px 14px;border-radius:var(--r);background:var(--surface);border:1.5px solid var(--line);text-align:left}
+.player:active{border-color:var(--accent)}
+.av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;flex:none;color:var(--on-accent);
+  font-family:var(--display);font-weight:600;font-size:1.4rem;background:var(--mul)}
+.av.c1{background:var(--div)} .av.c2{background:var(--add)} .av.c3{background:var(--sub)}
+.player b{display:block;color:var(--ink);font-family:var(--display);font-weight:600;font-size:1.25rem;overflow-wrap:anywhere}
+.player .meta{color:var(--muted);font-size:.85rem}
+.addrow{display:flex;gap:10px}
+.addrow input{flex:1;min-width:0;height:52px;border-radius:14px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+  font:inherit;font-size:1.05rem;padding:0 14px}
+.addrow button{height:52px;padding:0 18px;border-radius:14px;background:var(--ink);color:var(--bg);font-family:var(--display);font-weight:600;white-space:nowrap}
+.foot{color:var(--muted);font-size:.82rem;margin:0}
+
+/* Home */
+.homebar{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.me{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;background:var(--surface);border:1.5px solid var(--line);
+  font-weight:500;font-size:.9rem;margin-top:8px;max-width:50%}
+.me .av{width:30px;height:30px;font-size:1rem}
+.me span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.games{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:16px;
+  display:flex;flex-direction:column;gap:6px;text-align:left;min-height:168px;position:relative;
+  transition:transform .12s ease,border-color .12s ease}
+.card:active{transform:scale(.98);border-color:var(--accent)}
+.card .sym{font-family:var(--display);font-weight:700;font-size:3.4rem;line-height:.9;color:var(--accent)}
+.card h2{font-size:1.2rem}
+.card .sum{color:var(--muted);font-size:.86rem}
+.card .best{margin-top:auto;font-size:.82rem;font-weight:500;color:var(--accent)}
+.card::after{content:"";position:absolute;left:16px;right:16px;bottom:0;height:4px;border-radius:4px 4px 0 0;background:var(--accent)}
+@media (max-width:340px){.games{grid-template-columns:1fr}.card{min-height:0}}
+
+/* Setup */
+.top{display:flex;align-items:center;gap:12px}
+.back{width:44px;height:44px;border-radius:14px;background:var(--surface);border:1.5px solid var(--line);
+  font-size:1.3rem;display:grid;place-items:center;flex:none}
+.top h2{font-size:1.6rem;overflow-wrap:anywhere}
+.top .sym{font-family:var(--display);font-weight:700;font-size:2rem;color:var(--accent);line-height:1}
+.group{display:flex;flex-direction:column;gap:10px}
+.group h3{font-size:1.05rem}
+.group .note{color:var(--muted);font-size:.86rem;margin:0}
+.chips{display:grid;grid-template-columns:repeat(8,1fr);gap:8px}
+.chip{height:46px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line);
+  font-family:var(--display);font-weight:600;font-size:1.15rem}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+.pill{padding:9px 14px;border-radius:999px;background:var(--surface);border:1.5px solid var(--line);font-size:.9rem;font-weight:500}
+.pill[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.levels{display:flex;flex-direction:column;gap:8px}
+.level{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 16px;border-radius:14px;
+  background:var(--surface);border:1.5px solid var(--line);text-align:left}
+.level b{font-weight:500}
+.level span{font-family:var(--display);color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.level[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1.5px var(--accent)}
+.level[aria-pressed="true"] span{color:var(--accent)}
+.cta{margin-top:auto;position:sticky;bottom:14px;height:60px;border-radius:16px;background:var(--accent);color:var(--on-accent);
+  font-family:var(--display);font-weight:600;font-size:1.35rem;box-shadow:0 6px 18px rgba(10,20,50,.18)}
+.cta:disabled{opacity:.45;box-shadow:none}
+.ghost{height:56px;border-radius:16px;background:var(--surface);border:1.5px solid var(--line);font-family:var(--display);font-weight:600;font-size:1.15rem}
+
+/* Play */
+#play{overflow:hidden;user-select:none;-webkit-user-select:none}
+.stage{height:100%;max-width:1100px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) max(16px, env(safe-area-inset-left)) calc(16px + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-right));display:grid;grid-template-rows:auto auto 1fr auto;gap:10px}
+.hud{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.end{height:40px;padding:0 14px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line);font-size:.9rem;font-weight:500}
+.hud .title{font-family:var(--display);font-weight:600;color:var(--accent)}
+.score{font-family:var(--display);font-weight:600;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.score small{font-family:var(--body);font-weight:400;color:var(--muted);font-size:.8rem;margin-right:6px}
+.clock{display:flex;align-items:center;gap:12px}
+.bar{flex:1;height:10px;border-radius:10px;background:var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:100%;background:var(--accent);border-radius:10px;transform-origin:left}
+.clock .t{font-family:var(--display);font-weight:600;font-size:1.25rem;min-width:3.4ch;text-align:right;font-variant-numeric:tabular-nums}
+.clock.low .t{color:var(--bad)} .clock.low .bar i{background:var(--bad)}
+.board{container-type:inline-size;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:0}
+.eq{display:flex;align-items:center;gap:.26em;font-family:var(--display);font-weight:600;white-space:nowrap;line-height:1;
+  font-variant-numeric:tabular-nums;font-size:clamp(1.8rem,9vw,4rem)}
+@supports (width:1cqi){.eq{font-size:clamp(1.7rem,calc(100cqi / (var(--ch,10) * .66)),6rem)}}
+.eq .op{color:var(--muted);font-weight:500}
+.blank{min-width:calc(var(--n,3) * .62em + .5em);height:1.45em;padding:0 .22em;border-radius:.22em;
+  border:.07em solid var(--accent);background:var(--surface);display:grid;place-items:center;color:var(--accent)}
+.blank:empty::before{content:"";width:.07em;height:.8em;background:var(--accent);animation:blink 1s steps(1) infinite}
+.blank.ok{border-color:var(--good);color:var(--good)}
+.blank.no{border-color:var(--bad);color:var(--bad);animation:shake .3s}
+.card.wide{grid-column:1 / -1;min-height:0;flex-direction:row;flex-wrap:wrap;align-items:center;column-gap:14px;padding-bottom:20px}
+.card.wide .best{margin:0 0 0 auto}
+.card.small{min-height:124px;padding:14px}
+.card.small .sym{font-size:2.1rem;line-height:1}
+.card.small h2{font-size:1.02rem}
+.games.adv{grid-template-columns:repeat(2,1fr)}
+@media (min-width:600px){.games.adv{grid-template-columns:repeat(3,1fr)}}
+.sect{font-size:1.05rem;color:var(--muted);font-family:var(--body);font-weight:500;margin-bottom:-8px}
+.gq{display:block;text-align:center;line-height:1.55;white-space:nowrap}
+.gq .blank{display:inline-grid;vertical-align:middle}
+.gq sup{font-size:.55em;vertical-align:super;line-height:0}
+.gq sup .blank{height:1.5em}
+.frac{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;font-size:.74em;line-height:1.2;margin:0 .12em}
+.frac span:first-child{border-bottom:.09em solid currentColor;padding:0 .25em .08em}
+.frac span:last-child{padding:.08em .25em 0}
+.frac .blank{height:1.3em}
+.key.extra{grid-column:1 / -1;height:46px;font-size:1.15rem;color:var(--accent)}
+.rev{min-height:1.4em;text-align:center;font-size:.85rem;font-weight:600;color:var(--accent)}
+.msg{height:1.5em;font-weight:500;color:var(--bad);font-size:1rem}
+@keyframes blink{50%{opacity:0}}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:460px;margin:0 auto}
+.key{height:clamp(50px,9.5vh,78px);border-radius:16px;background:var(--key);border:1.5px solid var(--line);
+  font-family:var(--display);font-weight:600;font-size:1.8rem;box-shadow:0 2px 0 var(--line)}
+.key:active{transform:translateY(2px);box-shadow:none;background:var(--line)}
+.key.del{font-size:1.4rem;color:var(--muted)}
+.key.go{background:var(--accent);border-color:var(--accent);color:var(--on-accent);box-shadow:none;font-size:1.2rem}
+@media (min-width:820px) and (orientation:landscape){
+  .stage{grid-template-columns:1fr 440px;grid-template-rows:auto auto 1fr;column-gap:32px}
+  .hud,.clock{grid-column:1 / -1}
+  .pad{align-self:center}
+  .key{height:clamp(60px,14vh,96px)}
+}
+
+/* Results + progress */
+.hero{background:var(--surface);border:1.5px solid var(--line);border-radius:var(--r);padding:22px 20px;display:flex;flex-direction:column;gap:4px;
+  border-top:6px solid var(--accent)}
+.hero .big{font-family:var(--display);font-weight:700;font-size:4.6rem;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.hero .lbl{font-size:1.05rem;font-weight:500}
+.hero .tag{color:var(--muted);font-size:.88rem}
+.flag{align-self:flex-start;margin-top:8px;padding:5px 12px;border-radius:999px;background:var(--good);color:var(--on-accent);font-weight:600;font-size:.85rem}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{background:var(--surface);border:1.5px solid var(--line);border-radius:14px;padding:12px}
+.stat b{display:block;font-family:var(--display);font-weight:600;font-size:1.5rem;font-variant-numeric:tabular-nums}
+.stat span{color:var(--muted);font-size:.8rem}
+.missed{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;list-style:none;margin:0;padding:0}
+.missed li{background:var(--surface);border:1.5px solid var(--line);border-left:5px solid var(--bad);border-radius:10px;padding:9px 12px;
+  font-family:var(--display);font-weight:500;font-size:1.1rem;font-variant-numeric:tabular-nums;display:flex;justify-content:space-between;gap:8px}
+.missed li small{font-family:var(--body);color:var(--muted);font-size:.78rem;align-self:center}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:auto}
+.actions .cta{position:static;margin:0}
+.gstats{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.gs{background:var(--surface);border:1.5px solid var(--line);border-left:5px solid var(--accent);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.gs h3{font-size:1rem;display:flex;gap:6px;align-items:baseline}
+.gs h3 i{font-style:normal;color:var(--accent);font-weight:700;font-size:1.25rem}
+.gs .n{font-family:var(--display);font-weight:600;font-size:1.5rem;font-variant-numeric:tabular-nums;line-height:1.1}
+.gs .n small{font-family:var(--body);font-weight:400;font-size:.78rem;color:var(--muted)}
+.gs p{margin:0;color:var(--muted);font-size:.8rem}
+.gs svg{width:100%;height:40px;display:block;margin-top:2px}
+@media (max-width:380px){.gstats{grid-template-columns:1fr}}
+.rounds{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.rounds li{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;font-size:.88rem}
+.rounds .dot{width:26px;height:26px;border-radius:8px;display:grid;place-items:center;background:var(--accent);color:var(--on-accent);font-family:var(--display);font-weight:700}
+.rounds .what{min-width:0} .rounds .what b{font-weight:500;display:block} .rounds .what span{color:var(--muted);font-size:.8rem}
+.rounds .res{font-family:var(--display);font-weight:600;font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.rounds .res small{display:block;font-family:var(--body);font-weight:400;color:var(--muted);font-size:.76rem}
+.danger{align-self:flex-start;color:var(--bad);font-size:.88rem;font-weight:500;padding:10px 0;text-decoration:underline}
+@media (prefers-reduced-motion:reduce){*{animation:none !important;transition:none !important}}
+</style>
+</head>
+<body>
+
+<section class="screen" id="who">
+  <div class="wrap">
+    <header class="brand">
+      <h1>Mathlete</h1>
+      <p>Who is playing?</p>
+    </header>
+    <div class="players" id="players"></div>
+    <div class="group">
+      <h3 id="add-title">Add a player</h3>
+      <form class="addrow" id="add-form">
+        <input id="new-name" type="text" maxlength="14" autocomplete="off" autocapitalize="words" placeholder="First name" aria-label="Player name">
+        <button type="submit" id="add-btn">Add</button>
+      </form>
+    </div>
+    <p class="foot" id="sync-who"></p>
+  </div>
+</section>
+
+<section class="screen" id="home" hidden>
+  <div class="wrap">
+    <div class="homebar">
+      <header class="brand">
+        <h1>Mathlete</h1>
+        <p>Pick a game. Fill in the blank. Beat the clock.</p>
+      </header>
+      <button class="me" id="me" aria-label="Switch player"><span class="av" id="me-av"></span><span id="me-name"></span></button>
+    </div>
+    <h3 class="sect">Basics</h3>
+    <div class="games" id="games"></div>
+    <h3 class="sect">Advanced</h3>
+    <div class="games adv" id="games-adv"></div>
+    <button class="ghost" id="to-progress">See progress</button>
+    <p class="foot" id="sync-home"></p>
+  </div>
+</section>
+
+<section class="screen" id="setup" hidden>
+  <div class="wrap">
+    <div class="top">
+      <button class="back" id="setup-back" aria-label="Back to games">&#8592;</button>
+      <span class="sym" id="setup-sym"></span>
+      <h2 id="setup-name"></h2>
+    </div>
+    <div id="setup-body" style="display:flex;flex-direction:column;gap:22px"></div>
+    <button class="cta" id="start">Start</button>
+  </div>
+</section>
+
+<section class="screen" id="play" hidden>
+  <div class="stage">
+    <div class="hud">
+      <button class="end" id="end">End round</button>
+      <span class="title" id="play-name"></span>
+      <span class="score"><small>Score</small><span id="score">0</span></span>
+    </div>
+    <div class="clock" id="clock">
+      <div class="bar"><i id="bar"></i></div>
+      <span class="t" id="time">2:00</span>
+    </div>
+    <div class="board">
+      <div class="rev" id="tag"></div>
+      <div class="eq" id="eq" aria-live="polite"></div>
+      <div class="msg" id="msg"></div>
+    </div>
+    <div class="pad" id="pad">
+      <button class="key extra" id="xkey" data-k="" hidden></button>
+      <button class="key" data-k="1">1</button><button class="key" data-k="2">2</button><button class="key" data-k="3">3</button>
+      <button class="key" data-k="4">4</button><button class="key" data-k="5">5</button><button class="key" data-k="6">6</button>
+      <button class="key" data-k="7">7</button><button class="key" data-k="8">8</button><button class="key" data-k="9">9</button>
+      <button class="key del" data-k="del" aria-label="Delete">&#9003;</button>
+      <button class="key" data-k="0">0</button>
+      <button class="key go" data-k="go">Enter</button>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="results" hidden>
+  <div class="wrap">
+    <div class="hero">
+      <span class="tag" id="res-tag"></span>
+      <span class="big" id="res-big">0</span>
+      <span class="lbl" id="res-lbl">points</span>
+      <span class="tag">10 points for each right answer. 10 points off for each miss.</span>
+      <span class="flag" id="res-flag" hidden>New best</span>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="st-rate">0 / 0</b><span>Right / missed</span></div>
+      <div class="stat"><b id="st-acc">0%</b><span>Accuracy</span></div>
+      <div class="stat"><b id="st-best">0</b><span id="st-best-lbl">Best</span></div>
+    </div>
+    <div class="group" id="missed-group">
+      <h3>Practice these</h3>
+      <p class="note">Missed facts come back at the start of every round until they are answered correctly 3 rounds in a row.</p>
+      <ul class="missed" id="missed"></ul>
+    </div>
+    <p class="foot" id="res-clear" hidden></p>
+    <div class="actions">
+      <button class="ghost" id="res-home">All games</button>
+      <button class="cta" id="res-again">Play again</button>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="progress" hidden>
+  <div class="wrap">
+    <div class="top">
+      <button class="back" id="prog-back" aria-label="Back to games">&#8592;</button>
+      <h2 id="prog-name"></h2>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="pg-rounds">0</b><span>Rounds played</span></div>
+      <div class="stat"><b id="pg-right">0</b><span>Correct answers</span></div>
+      <div class="stat"><b id="pg-acc">0%</b><span>Accuracy</span></div>
+    </div>
+    <div class="group">
+      <h3>By game</h3>
+      <div class="gstats" id="pg-games"></div>
+    </div>
+    <div class="group" id="pg-miss-group">
+      <h3>Facts to work on</h3>
+      <p class="note">Each of these opens every round of its game until it is answered correctly 3 rounds in a row.</p>
+      <ul class="missed" id="pg-miss"></ul>
+    </div>
+    <div class="group" id="pg-recent-group">
+      <h3>Recent rounds</h3>
+      <ul class="rounds" id="pg-recent"></ul>
+    </div>
+    <button class="danger" id="pg-delete">Delete this player</button>
+  </div>
+</section>
+
+<script>
+(function(){
+"use strict";
+const $ = s => document.querySelector(s);
+const store = {
+  get(k,d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const range = (a,b) => Array.from({length:b-a+1},(_,i)=>a+i);
+const rnd = (a,b) => a + Math.floor(Math.random()*(b-a+1));
+const shuffle = a => { for(let i=a.length-1;i>0;i--){ const j=rnd(0,i); [a[i],a[j]]=[a[j],a[i]]; } return a; };
+
+const TIMES = [[60,"1 min"],[120,"2 min"],[180,"3 min"],[300,"5 min"],[0,"No limit"]];
+const MAXES = [[10,"10"],[12,"12"],[15,"15"]];
+const GAMES = {
+  mul:{ name:"Multiplication", sym:"×", kind:"tables", lo:0, hi:15, label:"Tables to practice", maxLabel:"Multiply by numbers up to",
+        presets:[["All 0–15",range(0,15),15],["1–12",range(1,12),12],["1–10",range(1,10),10],["Starter",[0,1,2,5,10],null]] },
+  div:{ name:"Division", sym:"÷", kind:"tables", lo:1, hi:15, label:"Divide by", maxLabel:"Answers up to",
+        presets:[["All 1–15",range(1,15),15],["1–12",range(1,12),12],["1–10",range(1,10),10],["Starter",[1,2,5,10],null]] },
+  add:{ name:"Addition", sym:"+", kind:"levels", levels:[
+        ["Sums to 10","4 + 5", ()=>{ const a=rnd(0,10); return [a, rnd(0,10-a)]; }],
+        ["Sums to 20","8 + 7", ()=>[rnd(2,10), rnd(2,10)]],
+        ["Two-digit + one-digit","34 + 8", ()=>[rnd(10,99), rnd(1,9)]],
+        ["Two-digit + two-digit","47 + 36", ()=>[rnd(10,99), rnd(10,99)]],
+        ["Three-digit + three-digit","358 + 274", ()=>[rnd(100,999), rnd(100,999)]] ] },
+  sub:{ name:"Subtraction", sym:"−", kind:"levels", levels:[
+        ["Within 10","9 − 4", ()=>{ const a=rnd(0,10); return [a, rnd(0,a)]; }],
+        ["Within 20","15 − 8", ()=>{ const a=rnd(6,20); return [a, rnd(1,Math.min(10,a))]; }],
+        ["Two-digit − one-digit","42 − 7", ()=>[rnd(10,99), rnd(1,9)]],
+        ["Two-digit − two-digit","83 − 46", ()=>{ const a=rnd(20,99); return [a, rnd(10,a)]; }],
+        ["Three-digit − three-digit","612 − 257", ()=>{ const a=rnd(200,999); return [a, rnd(100,a)]; }] ] }
+};
+GAMES.mix = { name:"Mixed", sym:"+\u00D7", dot:"\u00B1", kind:"mix" };
+const OPS = ["mul","div","add","sub"];
+/*GEN-START*/
+const B="▢";
+const anyOf = a => a[rnd(0,a.length-1)];
+const gcd = (a,b) => b ? gcd(b,a%b) : a;
+const nz = (lo,hi) => { let v=0; while(v===0) v=rnd(lo,hi); return v; };
+const neg = n => n<0 ? "−"+(-n) : ""+n;
+const par = n => n<0 ? "(−"+(-n)+")" : ""+n;
+const dec = (n,p) => { const s=(n/Math.pow(10,p)).toFixed(p); return s.includes(".") ? s.replace(/0+$/,"").replace(/\.$/,"") : s; };
+const Q = (q,ans) => ({q, ans:String(ans)});
+const plain = q => q.replace(/\n= /g," = ").replace(/\^\{([^}]*)\}/g,"^$1").replace(/\{([^/}]*)\/([^}]*)\}/g,"$1/$2").replace(/\n/g,", ");
+const fmtAns = s => String(s).replace("-","−").replace("R"," R ");
+function render(q,blankHtml){
+  return esc(q).replace(/\^\{([^}]*)\}/g,"<sup>$1</sup>")
+    .replace(/\{([^/}]*)\/([^}]*)\}/g,'<span class="frac"><span>$1</span><span>$2</span></span>')
+    .replace(/\n/g,"<br>").replace(B,blankHtml);
+}
+function same(input,ans){
+  if(ans.includes("R")){ const a=/^(\d+)R(\d+)$/.exec(input), b=/^(\d+)R(\d+)$/.exec(ans); return !!a && !!b && +a[1]===+b[1] && +a[2]===+b[2]; }
+  const v=Number(input); return input!=="" && isFinite(v) && Math.abs(v-Number(ans))<1e-9;
+}
+
+/* order of operations: token lists, checked so that working left to right (or ignoring the parentheses) gives a different answer */
+function evalTok(t){
+  let i=0, ok=true;
+  const base=()=>{ const x=t[i++]; if(x==="("){ const v=expr(); i++; return v; } return x; };
+  const fac=()=>{ let v=base(); if(t[i]==="^"){ i++; v=Math.pow(v,t[i++]); } return v; };
+  const term=()=>{ let v=fac(); while(t[i]==="×"||t[i]==="÷"){ const o=t[i++], w=fac(); if(o==="×") v*=w; else{ if(w===0||v%w!==0) ok=false; v=v/w; } } return v; };
+  function expr(){ let v=term(); while(t[i]==="+"||t[i]==="−"){ const o=t[i++], w=term(); v = o==="+" ? v+w : v-w; if(v<0) ok=false; } return v; }
+  const v=expr(); return ok && Number.isInteger(v) ? v : null;
+}
+function ltr(t){ let v=t[0]; for(let i=1;i<t.length;i+=2){ const o=t[i], w=t[i+1]; v = o==="+"?v+w : o==="−"?v-w : o==="×"?v*w : o==="÷"?v/w : Math.pow(v,w); } return v; }
+function showTok(t){
+  let s="";
+  t.forEach((x,i)=>{ if(x==="^") return; if(t[i-1]==="^"){ s+="^{"+x+"}"; return; }
+    if(x===")"){ s+=")"; return; } s+=(s && !s.endsWith("(") ? " " : "")+x; });
+  return s;
+}
+function pem(templates){
+  for(let n=0;n<600;n++){
+    const t=anyOf(templates)(), v=evalTok(t); if(v===null || v>999) continue;
+    const flat=t.filter(x=>x!=="("&&x!==")"), hasPar=flat.length!==t.length;
+    if(ltr(flat)!==v || (hasPar && evalTok(flat)!==v)) { const e=showTok(t); return Q(e+(plain(e).length>13 ? "\n= " : " = ")+B, v); }
+  }
+  return Q("2 + 3 × 4 = "+B, 14);
+}
+const n=rnd, X="×", D="÷", M="−";
+const PEM = [
+  [()=>[n(1,12),"+",n(2,9),X,n(2,9)], ()=>[n(20,99),M,n(2,9),X,n(2,9)], ()=>[n(2,9),"+",n(2,9),X,n(2,9),M,n(1,9)], ()=>[n(2,9),X,n(2,9),"+",n(2,9),X,n(2,9)]],
+  [()=>[n(1,20),"+",n(4,60),D,n(2,9)], ()=>[n(10,40),M,n(4,60),D,n(2,9)], ()=>[n(2,9),"+",n(4,60),D,n(2,9),X,n(2,5)], ()=>[n(20,60),M,n(2,6),X,n(2,6),"+",n(4,40),D,n(2,8)], ()=>[n(2,9),X,n(2,9),M,n(4,60),D,n(2,9)]],
+  [()=>["(",n(2,12),"+",n(2,12),")",X,n(2,9)], ()=>[n(2,9),X,"(",n(5,15),M,n(1,9),")"], ()=>["(",n(2,40),"+",n(2,40),")",D,n(2,9)], ()=>[n(20,60),M,"(",n(2,9),"+",n(2,9),")"],
+   ()=>[n(2,9),"+",n(2,6),X,"(",n(5,12),M,n(1,5),")"], ()=>["(",n(2,9),"+",n(2,9),")",X,"(",n(5,12),M,n(1,5),")"], ()=>[n(30,90),M,n(2,5),X,"(",n(2,6),"+",n(2,6),")"]],
+  [()=>[n(1,20),"+",n(2,9),"^",2], ()=>[n(2,5),X,n(2,6),"^",2], ()=>["(",n(1,6),"+",n(1,6),")","^",2], ()=>[n(5,12),"^",2,M,n(2,6),X,n(2,6)],
+   ()=>[2,"^",n(2,5),"+",n(2,6),X,n(2,6)], ()=>[n(40,99),M,n(2,6),"^",2], ()=>[n(2,9),"^",2,"+",n(2,9),"^",2]],
+  [()=>["(",n(1,6),"+",n(1,6),")","^",2,D,n(2,6),"+",n(1,9)], ()=>[n(1,9),"+",n(2,4),X,"(",n(4,9),M,n(1,4),")","^",2], ()=>[n(6,12),"^",2,M,"(",n(2,9),"+",n(2,9),")",X,n(2,5)],
+   ()=>[n(2,6),X,n(2,6),M,n(4,36),D,n(2,6),"+",n(2,5),"^",2], ()=>["(",n(2,20),"+",n(2,6),X,n(2,6),")",D,n(2,8)], ()=>[n(2,5),"^",3,M,"(",n(10,30),M,n(2,9),")",D,n(2,7)]]
+];
+function remQ(maxD,lo,hi){ for(;;){ const b=rnd(2,maxD), a=rnd(lo,hi); if(a>b && a%b) return Q(a+" ÷ "+b+" = "+B, Math.floor(a/b)+"R"+(a%b)); } }
+function negQ(kind){
+  if(kind===4) kind=rnd(0,3);
+  for(;;){
+    const a=nz(-12,12), b=nz(-12,12);
+    if(kind===0){ if(a>0&&b>0) continue; return Q(neg(a)+" + "+par(b)+" = "+B, a+b); }
+    if(kind===1){ if(a>0&&b>0&&a>=b) continue; return Q(neg(a)+" − "+par(b)+" = "+B, a-b); }
+    if(a>0&&b>0) continue;
+    if(kind===2) return Q(neg(a)+" × "+par(b)+" = "+B, a*b);
+    return Q(neg(a*b)+" ÷ "+par(b)+" = "+B, a);
+  }
+}
+function fracBase(){ for(;;){ const b=rnd(2,8), a=rnd(1,b-1); if(gcd(a,b)===1) return [a,b]; } }
+function fracQ(kind){
+  if(kind===0||kind===1){ const [a,b]=fracBase(), k=rnd(2,6), top=rnd(0,1);
+    if(kind===0) return top ? Q("{"+a+"/"+b+"} = {"+B+"/"+b*k+"}", a*k) : Q("{"+a+"/"+b+"} = {"+a*k+"/"+B+"}", b*k);
+    return top ? Q("{"+a*k+"/"+b*k+"} = {"+B+"/"+b+"}", a) : Q("{"+a*k+"/"+b*k+"} = {"+a+"/"+B+"}", b); }
+  if(kind===2){ const b=rnd(2,10), a=rnd(1,b-1), k=rnd(1,12); return Q("{"+a+"/"+b+"} of "+b*k+" = "+B, a*k); }
+  if(kind===3){ const b=rnd(3,12), x=rnd(1,b-1), y=rnd(1,b-1);
+    return (rnd(0,1) || x===y) ? Q("{"+x+"/"+b+"} + {"+y+"/"+b+"} = {"+B+"/"+b+"}", x+y)
+      : Q("{"+Math.max(x,y)+"/"+b+"} − {"+Math.min(x,y)+"/"+b+"} = {"+B+"/"+b+"}", Math.abs(x-y)); }
+  for(;;){ const b1=anyOf([2,3,4,5,6,8]), b2=anyOf([2,3,4,5,6,8]); if(b1===b2) continue;
+    const L=b1*b2/gcd(b1,b2), x=rnd(1,b1-1), y=rnd(1,b2-1), p=x*L/b1, q=y*L/b2;
+    if(rnd(0,1)) return Q("{"+x+"/"+b1+"} + {"+y+"/"+b2+"} = {"+B+"/"+L+"}", p+q);
+    if(p>q) return Q("{"+x+"/"+b1+"} − {"+y+"/"+b2+"} = {"+B+"/"+L+"}", p-q); }
+}
+function pctQ(kind){
+  if(kind===0){ const p=anyOf([10,50,100]), v=10*rnd(1,20); return Q(p+"% of "+v+" = "+B, p*v/100); }
+  if(kind===1){ const p=anyOf([20,25,75]), v=(p===20?5:4)*rnd(1,25); return Q(p+"% of "+v+" = "+B, p*v/100); }
+  if(kind===2){ const p=5*rnd(1,19), v=20*rnd(1,15); return Q(p+"% of "+v+" = "+B, p*v/100); }
+  if(kind===3){ const p=anyOf([5,10,20,25,40,50,60,75,80]), b=20*rnd(1,10); return Q(p*b/100+" is "+B+"% of "+b, p); }
+  const p=anyOf([10,15,20,25,30,40,50]), v=20*rnd(1,15);
+  return rnd(0,1) ? Q(p+"% off "+v+" = "+B, v-p*v/100) : Q(p+"% more than "+v+" = "+B, v+p*v/100);
+}
+function decQ(kind){
+  if(kind===0){ const a=rnd(1,99), b=rnd(1,99); if(a%10===0&&b%10===0) return decQ(0);
+    return (rnd(0,1)||a===b) ? Q(dec(a,1)+" + "+dec(b,1)+" = "+B, dec(a+b,1)) : Q(dec(Math.max(a,b),1)+" − "+dec(Math.min(a,b),1)+" = "+B, dec(Math.abs(a-b),1)); }
+  if(kind===1){ const a=rnd(101,999), b=10*rnd(1,99); if(a%10===0) return decQ(1);
+    return (rnd(0,1)||a===b) ? Q(dec(a,2)+" + "+dec(b,2)+" = "+B, dec(a+b,2)) : Q(dec(Math.max(a,b),2)+" − "+dec(Math.min(a,b),2)+" = "+B, dec(Math.abs(a-b),2)); }
+  if(kind===2){ const a=rnd(1,99), k=rnd(2,9); if(a%10===0) return decQ(2); return Q(dec(a,1)+" × "+k+" = "+B, dec(a*k,1)); }
+  if(kind===3){ const a=anyOf([1,2,3,4,5,6,7,8,9,11,12]), b=anyOf([1,2,3,4,5,6,7,8,9,11,12]); return Q(dec(a,1)+" × "+dec(b,1)+" = "+B, dec(a*b,2)); }
+  const k=rnd(2,9), q=rnd(1,99); if(q%10===0) return decQ(4); return Q(dec(q*k,1)+" ÷ "+k+" = "+B, dec(q,1));
+}
+function eqnQ(kind){
+  const tail="\nx = "+B;
+  if(kind===2) kind=rnd(0,1);
+  if(kind===0){ const a=rnd(1,20), x=rnd(1,20); return rnd(0,1) ? Q("x + "+a+" = "+(x+a)+tail, x) : Q("x − "+a+" = "+x+tail, x+a); }
+  if(kind===1){ const a=rnd(2,12), x=rnd(1,12); return rnd(0,1) ? Q(a+"x = "+a*x+tail, x) : Q("{x/"+a+"} = "+x+tail, a*x); }
+  if(kind===3){ const a=rnd(2,9), x=rnd(1,12), b=rnd(1,Math.min(20,a*x)); return rnd(0,1) ? Q(a+"x + "+b+" = "+(a*x+b)+tail, x) : Q(a+"x − "+b+" = "+(a*x-b)+tail, x); }
+  const a=rnd(2,12), x=-rnd(1,12), t=rnd(0,3);
+  if(t===0) return Q("x + "+a+" = "+neg(x+a)+tail, x);
+  if(t===1) return Q("x − "+a+" = "+neg(x-a)+tail, x);
+  if(t===2) return Q(a+"x = "+neg(a*x)+tail, x);
+  return Q("−"+a+"x = "+neg(-a*-x)+tail, -x);
+}
+function expQ(kind){
+  const top={2:10,3:5,4:5,5:4,6:3,10:6};
+  if(kind===0) { const e=rnd(1,10); return Q("2^{"+e+"} = "+B, Math.pow(2,e)); }
+  if(kind===1){ const b=anyOf([2,3,5,10]), e=rnd(1,top[b]); return Q(b+"^{"+e+"} = "+B, Math.pow(b,e)); }
+  if(kind===2){ const b=rnd(1,10); return Q(b+"^{3} = "+B, b*b*b); }
+  if(kind===3){ const b=rnd(2,6), e=rnd(0,Math.min(4,top[b])); return Q(b+"^{"+e+"} = "+B, Math.pow(b,e)); }
+  const b=anyOf([2,3,4,5,10]), e=rnd(1,top[b]); return Q(b+"^{"+B+"} = "+Math.pow(b,e), e);
+}
+const sqQ = hi => { const v=rnd(hi>12?2:1,hi); return Q(v+"^{2} = "+B, v*v); };
+const rtQ = hi => { const v=rnd(hi>12?2:1,hi); return Q("√"+v*v+" = "+B, v); };
+const mulQ = (a,b) => Q(a+" × "+b+" = "+B, a*b);
+const L = (name,eg,fn) => [name,eg,fn];
+Object.assign(GAMES, {
+  pem:{ name:"Order of Operations", sym:"( )", dot:"P", kind:"gen", hue:"mix", hint:"Parentheses, exponents, × and ÷, then + and −", levels:[
+    L("Multiply before you add","3 + 4 × 2", ()=>pem(PEM[0])), L("Add division","20 − 12 ÷ 4", ()=>pem(PEM[1])),
+    L("Parentheses","(3 + 4) × 2", ()=>pem(PEM[2])), L("Exponents","5 + 3²", ()=>pem(PEM[3])), L("Everything (PEMDAS)","(2 + 4)² ÷ 9 + 1", ()=>pem(PEM[4])) ] },
+  sq:{ name:"Squares & Roots", sym:"x²", dot:"√", kind:"gen", hue:"mul", levels:[
+    L("Squares to 12","7²", ()=>sqQ(12)), L("Squares to 20","16²", ()=>sqQ(20)), L("Square roots to 144","√81", ()=>rtQ(12)),
+    L("Square roots to 400","√289", ()=>rtQ(20)), L("Squares and roots to 20","14², √324", ()=>rnd(0,1)?sqQ(20):rtQ(20)) ] },
+  long:{ name:"Big Multiplication", sym:"××", dot:"×", kind:"gen", hue:"div", levels:[
+    L("Two-digit × one-digit","23 × 7", ()=>mulQ(rnd(12,99),rnd(2,9))), L("Three-digit × one-digit","418 × 6", ()=>mulQ(rnd(101,999),rnd(2,9))),
+    L("Two-digit × two-digit","23 × 14", ()=>mulQ(rnd(11,99),rnd(11,99))), L("Three-digit × two-digit","236 × 41", ()=>mulQ(rnd(101,999),rnd(11,99))) ] },
+  rem:{ name:"Remainders", sym:"R", dot:"R", kind:"gen", hue:"add", key:"R", hint:"Type the answer, then R, then the remainder", levels:[
+    L("Divide by 2 to 5","17 ÷ 3 = 5 R 2", ()=>remQ(5,5,50)), L("Divide by 2 to 9","47 ÷ 6 = 7 R 5", ()=>remQ(9,10,100)),
+    L("Divide by 2 to 12","100 ÷ 11 = 9 R 1", ()=>remQ(12,20,150)), L("Three-digit ÷ one-digit","257 ÷ 4 = 64 R 1", ()=>remQ(9,100,999)) ] },
+  neg:{ name:"Negative Numbers", sym:"−1", dot:"−", kind:"gen", hue:"sub", key:"pm", hint:"Use the + / − key for negative answers", levels:[
+    L("Adding","−7 + 3", ()=>negQ(0)), L("Subtracting","3 − 8", ()=>negQ(1)), L("Multiplying","−4 × 6", ()=>negQ(2)),
+    L("Dividing","−36 ÷ 4", ()=>negQ(3)), L("All four","mixed", ()=>negQ(4)) ] },
+  frac:{ name:"Fractions", sym:"½", dot:"½", kind:"gen", hue:"mul", levels:[
+    L("Equivalent fractions","1/2 = ?/8", ()=>fracQ(0)), L("Simplify","6/8 = ?/4", ()=>fracQ(1)), L("Fraction of a number","3/4 of 20", ()=>fracQ(2)),
+    L("Add and subtract, same bottom","2/7 + 3/7", ()=>fracQ(3)), L("Add and subtract, different bottoms","1/2 + 1/4", ()=>fracQ(4)) ] },
+  pct:{ name:"Percents", sym:"%", dot:"%", kind:"gen", hue:"div", levels:[
+    L("10%, 50%, 100%","10% of 80", ()=>pctQ(0)), L("20%, 25%, 75%","25% of 80", ()=>pctQ(1)), L("Any 5% step","35% of 60", ()=>pctQ(2)),
+    L("Find the percent","12 is ?% of 48", ()=>pctQ(3)), L("Percent off and percent more","20% off 80", ()=>pctQ(4)) ] },
+  dec:{ name:"Decimals", sym:"0.1", dot:".", kind:"gen", hue:"add", key:"dot", levels:[
+    L("Add and subtract tenths","0.6 + 0.7", ()=>decQ(0)), L("Add and subtract hundredths","1.25 + 0.6", ()=>decQ(1)), L("Decimal × whole number","1.2 × 3", ()=>decQ(2)),
+    L("Decimal × decimal","0.4 × 0.6", ()=>decQ(3)), L("Decimal ÷ whole number","4.8 ÷ 4", ()=>decQ(4)) ] },
+  eqn:{ name:"Solve for x", sym:"x=", dot:"x", kind:"gen", hue:"mix", key:"pm", levels:[
+    L("Add and subtract","x + 7 = 15", ()=>eqnQ(0)), L("Multiply and divide","3x = 27", ()=>eqnQ(1)), L("All four","mixed", ()=>eqnQ(2)),
+    L("Two steps","3x + 4 = 19", ()=>eqnQ(3)), L("Negative answers","x + 9 = 4", ()=>eqnQ(4)) ] },
+  exp:{ name:"Exponents", sym:"xⁿ", dot:"^", kind:"gen", hue:"sub", levels:[
+    L("Powers of 2","2⁵", ()=>expQ(0)), L("Powers of 2, 3, 5, and 10","10⁴", ()=>expQ(1)), L("Cubes","4³", ()=>expQ(2)),
+    L("Any base, including power 0","6⁰", ()=>expQ(3)), L("Find the exponent","2ˣ = 32", ()=>expQ(4)) ] }
+});
+const ADV = ["pem","sq","long","rem","neg","frac","pct","dec","eqn","exp"];
+const hueOf = g => (GAMES[g] && GAMES[g].hue) || g;
+/*GEN-END*/
+
+const ORDER = ["mul","div","add","sub","mix"].concat(ADV);
+const DEFAULTS = {
+  mul:{tables:range(0,15), max:15, time:120, blank:"answer"},
+  div:{tables:range(1,15), max:15, time:120, blank:"answer"},
+  add:{level:0, time:120, blank:"answer"},
+  sub:{level:0, time:120, blank:"answer"},
+  mix:{ops:["mul","div","add","sub"], time:120, blank:"answer"}
+};
+ADV.forEach(g=>{ DEFAULTS[g]={level:0, time: g==="long" ? 180 : 120, blank:"answer"}; });
+
+/* ---------- players and saved progress ---------- */
+function normCfg(c){
+  const out={}; c=c||{};
+  ORDER.forEach(g=>{
+    const had = c[g] && c[g].max!=null;
+    out[g]=Object.assign({}, clone(DEFAULTS[g]), c[g]||{});
+    if(g==="mix"){ out[g].ops = Array.isArray(out[g].ops) ? OPS.filter(o=>out[g].ops.includes(o)) : OPS.slice(); }
+    if(GAMES[g].levels) out[g].level=Math.min(GAMES[g].levels.length-1, Math.max(0, out[g].level|0));
+    if(GAMES[g].kind==="tables"){
+      if(!Array.isArray(out[g].tables)) out[g].tables=clone(DEFAULTS[g].tables);
+      if(!had){ const m=Math.max(0,...out[g].tables); out[g].max = m<=10 ? 10 : m<=12 ? 12 : 15; }  /* match an older setup to its tables */
+    }
+  });
+  return out;
+}
+function normalize(p){
+  p=p||{};
+  const review={};
+  if(p.review && typeof p.review==="object"){   /* stored as a list, older saves as a map */
+    Object.keys(p.review).forEach(k=>{ const r=p.review[k]; if(!r) return; const st=Math.max(0,Math.min(2,r.streak|0));
+      if(OPS.includes(r.g)) review[r.g+":"+(+r.a)+"_"+(+r.b)]={g:r.g,a:+r.a,b:+r.b,c:+r.c,streak:st};
+      else if(GAMES[r.g] && GAMES[r.g].kind==="gen" && typeof r.q==="string" && r.q.length<=80 && r.q.includes(B)){
+        const q=r.q, ans=String(r.ans).slice(0,12); review[r.g+":"+q]={g:r.g,q,ans,streak:st}; } });
+  } else if(p.miss){   /* oldest saves kept missed facts as text */
+    Object.keys(p.miss).forEach(t=>{ const m=/^(\d+) (.) (\d+) = (\d+)$/.exec(t), g=m && OPS.find(o=>GAMES[o].sym===m[2]);
+      if(g) review[g+":"+m[1]+"_"+m[3]]={g,a:+m[1],b:+m[3],c:+m[4],streak:0}; });
+  }
+  return { name:String(p.name||"Player").slice(0,14), hue:(p.hue|0)%4, created:p.created||Date.now(), cfg:normCfg(p.cfg),
+    bests:p.bests||{}, games:p.games||{}, recent:Array.isArray(p.recent)?p.recent:[], review };
+}
+let profiles = {}; { const raw=store.get("ms.profiles",{}); Object.keys(raw).forEach(id=>{ profiles[id]=normalize(raw[id]); }); }
+let dirty = store.get("ms.dirty",{});
+let who = store.get("ms.who",null); if(!profiles[who]) who=null;
+let db=null, live=false, pushed=false, chain=Promise.resolve();
+let game="mul", screen="who", cfg=null;
+const P = () => profiles[who];
+
+function saveLocal(){ store.set("ms.profiles",profiles); store.set("ms.dirty",dirty); }
+function persist(id){
+  const p=profiles[id]; if(!p) return;
+  if(!db){ dirty[id]=1; saveLocal(); return; }
+  saveLocal();
+  const body=clone(p); body.review=Object.keys(body.review).map(k=>body.review[k]);
+  chain=chain.then(()=>db.doc("profiles/"+id).set(body)).catch(()=>{ dirty[id]=1; saveLocal(); });
+}
+function removeProfile(id){
+  delete profiles[id]; delete dirty[id]; saveLocal();
+  if(db) chain=chain.then(()=>db.doc("profiles/"+id).delete()).catch(()=>{});
+}
+function onSnap(snap){
+  const full=!snap.metadata.fromCache, map={};
+  snap.docs.forEach(d=>{ if(d.exists) map[d.id]=normalize(clone(d.data())); });
+  if(!full) Object.keys(profiles).forEach(id=>{ if(!map[id]) map[id]=profiles[id]; });
+  Object.keys(dirty).forEach(id=>{ if(profiles[id]) map[id]=profiles[id]; });
+  if(who && map[who] && profiles[who] && (screen==="setup"||screen==="play")) map[who].cfg=profiles[who].cfg;
+  profiles=map; if(who && profiles[who]) cfg=profiles[who].cfg;
+  if(full){
+    live=true;
+    if(!pushed){ pushed=true; const ids=Object.keys(dirty); dirty={}; ids.forEach(id=>persist(id)); }
+    store.set("ms.profiles",profiles);
+  }
+  refresh();
+}
+function refresh(){
+  syncNote();
+  if(who && !profiles[who]){ who=null; store.set("ms.who",null); if(screen!=="play"){ renderWho(); show("who"); } return; }
+  if(screen==="who") renderWho(); else if(screen==="home") renderHome(); else if(screen==="progress") renderProgress();
+}
+function syncNote(){
+  const t = live ? "Progress is saved online and shows up on every device that opens this page under your account."
+                 : "Progress is saved on this device.";
+  $("#sync-who").textContent=t; $("#sync-home").textContent=t;
+}
+if("serviceWorker" in navigator){ window.addEventListener("load",()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); }); }
+(async function connect(){
+  try{
+    const d = window.claude && window.claude.use ? await window.claude.use("db") : null;
+    if(d){ db=d; d.collection("profiles").onSnapshot(onSnap, ()=>{ db=null; live=false; syncNote(); }); }
+  }catch(e){ db=null; }
+})();
+
+/* ---------- helpers ---------- */
+function compress(list){
+  const a=[...list].sort((x,y)=>x-y), out=[];
+  for(let i=0;i<a.length;i++){ let j=i; while(j+1<a.length && a[j+1]===a[j]+1) j++;
+    out.push(j>i ? a[i]+"–"+a[j] : ""+a[i]); i=j; }
+  return out.join(", ");
+}
+function timeLabel(t){ const x=TIMES.find(v=>v[0]===t); return x ? x[1] : t+" s"; }
+function summary(g){
+  const G=GAMES[g], c=cfg[g];
+  if(g==="mix") return c.ops.map(o=>GAMES[o].sym).join("  ");
+  if(G.levels) return G.levels[c.level][0];
+  if(g==="mul") return (c.tables.length===16 && c.max===15) ? "All tables 0–15" : "Tables "+compress(c.tables)+", up to ×"+c.max;
+  return "Divide by "+compress(c.tables)+", answers to "+c.max;
+}
+function core(g){ const c=cfg[g]; return GAMES[g].levels ? ""+c.level : c.tables.join(".")+"|"+c.max; }
+function sig(g){ const c=cfg[g]; return g+"|"+(g==="mix" ? c.ops.map(o=>o+":"+core(o)).join("/") : core(g))+"|"+c.time+"|"+c.blank; }
+function fmt(sec){ sec=Math.max(0,Math.ceil(sec)); return Math.floor(sec/60)+":"+String(sec%60).padStart(2,"0"); }
+const points = (right,wrong) => Math.max(0, right*10 - wrong*10);
+const scoreOf = r => points(r.right|0, (r.count|0)-(r.right|0));
+function bestText(g){
+  const b=P().bests["s|"+sig(g)]; if(b==null) return "No score yet";
+  return cfg[g].time ? "Best "+b+" points" : "Best time "+fmt(b);
+}
+function buildDeck(g){
+  const c=cfg[g], d=[];
+  if(g==="mul"){
+    const lo = c.tables.includes(0) ? 0 : 1, seen=new Set();   /* zero facts only when the 0 table is picked */
+    const put=(a,b)=>{ const k=a+"_"+b; if(!seen.has(k)){ seen.add(k); d.push({g,a,b,c:a*b}); } };
+    c.tables.forEach(t=>{ for(let o=lo;o<=c.max;o++){ put(t,o); put(o,t); } });
+  } else {
+    c.tables.forEach(v=>{ for(let q=0;q<=c.max;q++) d.push({g,a:q*v,b:v,c:q}); });
+  }
+  return d;
+}
+function show(id){ screen=id; ["who","home","setup","play","results","progress"].forEach(s => { $("#"+s).hidden = s!==id; });
+  document.body.dataset.game = hueOf(game); $("#"+id).scrollTop = 0; }
+function day(ts){ try{ return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }catch(e){ return ""; } }
+function totals(p){ let rounds=0,right=0,count=0; ORDER.forEach(g=>{ const s=p.games[g]; if(s){ rounds+=s.rounds; right+=s.right; count+=s.count; } }); return {rounds,right,count}; }
+
+/* ---------- who ---------- */
+function renderWho(){
+  const box=$("#players"); box.innerHTML="";
+  const ids=Object.keys(profiles).sort((a,b)=>profiles[a].created-profiles[b].created);
+  ids.forEach(id=>{
+    const p=profiles[id], t=totals(p), last=p.recent[0];
+    const b=document.createElement("button"); b.className="player"; b.id="player-"+id;
+    b.innerHTML='<span class="av c'+p.hue+'">'+esc(p.name.charAt(0).toUpperCase())+'</span><span><b>'+esc(p.name)+'</b><span class="meta">'+
+      (t.rounds ? t.rounds+(t.rounds===1?" round":" rounds")+" · "+Math.round(100*t.right/Math.max(1,t.count))+"% correct"+(last?" · last played "+day(last.at):"") : "No rounds yet")+"</span></span>";
+    b.addEventListener("click",()=>pick(id));
+    box.appendChild(b);
+  });
+  $("#add-title").textContent = ids.length ? "Add another player" : "Add a player to start";
+}
+function pick(id){ who=id; store.set("ms.who",id); cfg=P().cfg; renderHome(); show("home"); }
+$("#add-form").addEventListener("submit",e=>{
+  e.preventDefault();
+  const name=$("#new-name").value.trim().slice(0,14); if(!name) { $("#new-name").focus(); return; }
+  const id="p"+Date.now().toString(36)+rnd(100,999), first=Object.keys(profiles).length===0;
+  const p=normalize({name, hue:Object.keys(profiles).length%4, created:Date.now()});
+  if(first){ const oc=store.get("ms.cfg",null); if(oc) p.cfg=normCfg(oc); }   /* keep the settings chosen before players existed */
+  profiles[id]=p; persist(id); $("#new-name").value=""; $("#new-name").blur(); pick(id);
+});
+
+/* ---------- home ---------- */
+function card(g,small){
+  const G=GAMES[g], b=document.createElement("button");
+  b.className="card"+(g==="mix"?" wide":"")+(small?" small":""); b.dataset.game=hueOf(g); b.id="card-"+g;
+  b.innerHTML='<span class="sym" aria-hidden="true">'+G.sym+'</span><h2>'+G.name+'</h2>'+
+    '<span class="sum">'+summary(g)+' \u00B7 '+timeLabel(cfg[g].time)+'</span><span class="best">'+bestText(g)+'</span>';
+  b.addEventListener("click",()=>{ game=g; renderSetup(); show("setup"); });
+  return b;
+}
+function renderHome(){
+  const p=P(); if(!p){ renderWho(); show("who"); return; }
+  $("#me-av").className="av c"+p.hue; $("#me-av").textContent=p.name.charAt(0).toUpperCase(); $("#me-name").textContent=p.name;
+  const box=$("#games"), adv=$("#games-adv"); box.innerHTML=""; adv.innerHTML="";
+  OPS.concat("mix").forEach(g=>box.appendChild(card(g,false)));
+  ADV.forEach(g=>adv.appendChild(card(g,true)));
+}
+
+/* ---------- setup ---------- */
+function group(title,note){
+  const d=document.createElement("div"); d.className="group";
+  d.innerHTML="<h3>"+title+"</h3>"+(note?'<p class="note">'+note+"</p>":""); return d;
+}
+function pills(items,current,onPick,idp){
+  const r=document.createElement("div"); r.className="row";
+  items.forEach(([val,label],i)=>{
+    const b=document.createElement("button"); b.className="pill"; b.id=idp+"-"+i; b.textContent=label;
+    b.setAttribute("aria-pressed", String(val===current));
+    b.addEventListener("click",()=>{ onPick(val); saveLocal(); renderSetup(); });
+    r.appendChild(b);
+  });
+  return r;
+}
+function renderSetup(){
+  const G=GAMES[game], c=cfg[game], body=$("#setup-body");
+  $("#setup-sym").textContent=G.sym; $("#setup-name").textContent=G.name;
+  body.innerHTML="";
+  const due=reviewFor(P(),opsInPlay()).length;
+  if(due){ body.appendChild(group("Review first", due+(due===1?" missed fact opens":" missed facts open")+" this round. Each one keeps coming back until it is answered correctly 3 rounds in a row.")); }
+  if(G.hint){ body.appendChild(group("How it works", G.hint+".")); }
+  if(G.kind==="mix"){
+    const g1=group("Operations in the mix", "Each one uses the level chosen in its own game.");
+    const box=document.createElement("div"); box.className="levels";
+    OPS.forEach(o=>{
+      const b=document.createElement("button"); b.className="level"; b.id="op-"+o; b.dataset.game=o;
+      b.innerHTML="<b>"+GAMES[o].sym+"\u2002"+GAMES[o].name+"</b><span>"+summary(o)+"</span>";
+      b.setAttribute("aria-pressed", String(c.ops.includes(o)));
+      b.addEventListener("click",()=>{ c.ops = c.ops.includes(o) ? c.ops.filter(x=>x!==o) : OPS.filter(x=>x===o||c.ops.includes(x)); saveLocal(); renderSetup(); });
+      box.appendChild(b);
+    });
+    g1.appendChild(box); body.appendChild(g1);
+    const usable=c.ops.filter(o=>GAMES[o].kind!=="tables" || buildDeck(o).length);
+    if(c.ops.length<2){ body.appendChild(group("Pick at least two","A mix needs two or more operations.")); }
+    $("#start").disabled = c.ops.length<2 || usable.length<c.ops.length;
+  } else if(G.kind==="tables"){
+    const n=buildDeck(game).length;
+    const g1=group(G.label, n ? n+" facts in this round’s deck." : "Pick at least one.");
+    const chips=document.createElement("div"); chips.className="chips";
+    range(G.lo,G.hi).forEach(v=>{
+      const b=document.createElement("button"); b.className="chip"; b.id="chip-"+v; b.textContent=v;
+      b.setAttribute("aria-pressed", String(c.tables.includes(v)));
+      b.addEventListener("click",()=>{
+        c.tables = c.tables.includes(v) ? c.tables.filter(x=>x!==v) : c.tables.concat(v).sort((x,y)=>x-y);
+        saveLocal(); renderSetup();
+      });
+      chips.appendChild(b);
+    });
+    g1.appendChild(chips);
+    const key=c.tables.join(".");
+    const pr=document.createElement("div"); pr.className="row";
+    G.presets.forEach(([label,list,max],i)=>{
+      const b=document.createElement("button"); b.className="pill"; b.id="preset-"+i; b.textContent=label;
+      b.setAttribute("aria-pressed", String(list.join(".")===key && (max==null || max===c.max)));
+      b.addEventListener("click",()=>{ c.tables=list.slice(); if(max!=null) c.max=max; saveLocal(); renderSetup(); });
+      pr.appendChild(b);
+    });
+    g1.appendChild(pr);
+    body.appendChild(g1);
+    const eg = game==="mul"
+      ? "The other number in each problem never goes above "+c.max+". Zero only shows up when the 0 table is picked."
+      : "No answer is ever bigger than "+c.max+", so the largest problem is "+(c.max*Math.max(1,...c.tables))+" ÷ "+Math.max(1,...c.tables)+".";
+    const gm=group(G.maxLabel, eg);
+    gm.appendChild(pills(MAXES, c.max, v=>{ c.max=v; }, "max")); body.appendChild(gm);
+    $("#start").disabled = n===0;
+  } else {
+    const g1=group("Level");
+    const box=document.createElement("div"); box.className="levels";
+    G.levels.forEach(([name,eg],i)=>{
+      const b=document.createElement("button"); b.className="level"; b.id="level-"+i;
+      b.innerHTML="<b>"+(i+1)+". "+name+"</b><span>"+eg+"</span>";
+      b.setAttribute("aria-pressed", String(i===c.level));
+      b.addEventListener("click",()=>{ c.level=i; saveLocal(); renderSetup(); });
+      box.appendChild(b);
+    });
+    g1.appendChild(box); body.appendChild(g1);
+    $("#start").disabled=false;
+  }
+  const g2=group("Time", c.time ? "" : (G.kind==="tables" ? "The clock counts up. The round ends when every fact in the deck is answered correctly." : "The clock counts up. Tap End round when you are done."));
+  g2.appendChild(pills(TIMES, c.time, v=>{ c.time=v; }, "time")); body.appendChild(g2);
+  if(G.kind!=="gen"){ const g3=group("Blank", c.blank==="any" ? "The missing number can be any of the three, like "+({mul:"7 \u00D7 __ = 56",div:"21 \u00F7 __ = 3",add:"7 + __ = 12",sub:"9 \u2212 __ = 2",mix:"7 \u00D7 __ = 56"})[game]+"." : "");
+  g3.appendChild(pills([["answer","Answer only"],["any","Any number"]], c.blank, v=>{ c.blank=v; }, "blank")); body.appendChild(g3); }
+}
+
+/* ---------- play ---------- */
+let R=null;
+const symOf = p => GAMES[p.g].sym;
+const keyOf = p => p.gen ? p.g+":"+p.q : p.g+":"+p.a+"_"+p.b;
+function factText(p){ return p.gen ? plain(p.q).replace(B,fmtAns(p.ans).trim()) : p.a+" "+symOf(p)+" "+p.b+" = "+p.c; }
+function opsInPlay(){ return game==="mix" ? cfg.mix.ops.slice() : [game]; }
+function reviewFor(p,ops){
+  return Object.keys(p.review).filter(k=>ops.includes(p.review[k].g)).map(k=>{ const r=p.review[k]; return r.q!=null ? {g:r.g,gen:true,q:r.q,ans:r.ans,review:true} : {g:r.g,a:r.a,b:r.b,c:r.c,review:true}; });
+}
+function startRound(){
+  if(!P()){ renderWho(); show("who"); return; }
+  const c=cfg[game], ops=opsInPlay(), rev=shuffle(reviewFor(P(),ops));
+  R={ ops, decks:{}, skip:new Set(rev.map(keyOf)), review:rev, retry:[], count:0, right:0, wrong:0,
+      missed:new Map(), seen:new Map(), input:"", cur:null, last:"", lock:false, t0:performance.now(), limit:c.time, done:false, tick:0, wait:0,
+      label:summary(game), key:sig(game), extra:GAMES[game].key||"" };
+  const xk=$("#xkey"); xk.hidden=!R.extra; xk.dataset.k=R.extra; xk.textContent=({pm:"+ / \u2212", dot:".", R:"R  (remainder)"})[R.extra]||"";
+  $("#play-name").textContent=GAMES[game].name; $("#score").textContent="0"; $("#msg").textContent="";
+  $("#clock").classList.remove("low");
+  show("play"); nextProblem(); loop();
+}
+function fresh(g){   /* a new problem for one operation, or null when its deck is used up */
+  const G=GAMES[g];
+  if(G.kind==="tables"){
+    let d=R.decks[g];
+    if(!d) d=R.decks[g]=shuffle(buildDeck(g).filter(p=>!R.skip.has(keyOf(p))));   /* review facts were already asked */
+    if(!d.length){
+      if(!R.limit && game!=="mix") return null;
+      d=R.decks[g]=shuffle(buildDeck(g));
+      if(!d.length) return null;
+    }
+    let p=d.pop(); if(d.length && keyOf(p)===R.last){ d.unshift(p); p=d.pop(); }
+    return p;
+  }
+  let p=null;
+  if(G.kind==="gen"){
+    for(let i=0;i<10;i++){ const r=G.levels[cfg[g].level][2](); p={g,gen:true,q:r.q,ans:r.ans}; if(keyOf(p)!==R.last) break; }
+    return p;
+  }
+  for(let i=0;i<8;i++){ const [a,b]=G.levels[cfg[g].level][2](); p={g,a,b,c: g==="add" ? a+b : a-b}; if(keyOf(p)!==R.last) break; }
+  return p;
+}
+function nextProblem(){
+  const c=cfg[game]; let p=null, again=false;
+  const due=R.retry.findIndex(r=>r.due<=R.count);
+  if(due>=0){ p=R.retry.splice(due,1)[0].p; again=true; }
+  else if(R.review.length){ p=R.review.pop(); }
+  else{
+    const ops=shuffle(R.ops.slice());
+    for(let i=0;i<ops.length && !p;i++) p=fresh(ops[i]);
+    if(!p){ if(R.retry.length){ p=R.retry.shift().p; again=true; } else return finish(true); }
+  }
+  let blank=2;
+  if(c.blank==="any" && !p.gen){
+    const opts=[2,0,1].filter(i=>{
+      if(i===2) return true;
+      if(p.g==="mul") return (i===0 ? p.b : p.a)!==0;     /* 0 x __ = 0 has no single answer */
+      if(p.g==="div") return i===0 || p.a!==0;            /* 0 / __ = 0 has no single answer */
+      return true;
+    });
+    blank=opts[rnd(0,opts.length-1)];
+  }
+  R.cur={p,blank,again,ans: p.gen ? String(p.ans) : String([p.a,p.b,p.c][blank])}; R.last=keyOf(p); R.input=""; R.lock=false;
+  const e=P() && P().review[keyOf(p)];
+  $("#tag").textContent = (p.review && !again && e) ? "Review fact \u00B7 "+(e.streak|0)+" of 3 clean rounds" : (GAMES[game].hint||"");
+  $("#msg").textContent="";
+  drawEq();
+}
+function drawEq(state){
+  const {p,blank,ans}=R.cur, eq=$("#eq"), n=Math.max(p.gen?2:3, fmtAns(ans).length);
+  const bl='<span class="blank'+(state?" "+state:"")+'" style="--n:'+n+'">'+esc(fmtAns(state ? ans : R.input))+"</span>";
+  if(p.gen){
+    const meas=l=>l.replace(B,"#".repeat(n+2)).replace(/\^\{([^}]*)\}/g,(m,x)=>"#".repeat(Math.ceil(x.length*0.55)))
+      .replace(/\{([^/}]*)\/([^}]*)\}/g,(m,x,y)=>"#".repeat(Math.ceil(Math.max(x.length,y.length)*0.75)+1)).length;
+    const wide=Math.max(...p.q.split("\n").map(meas));
+    eq.style.setProperty("--ch",Math.max(8,wide));
+    eq.innerHTML='<span class="gq">'+render(p.q,bl)+"</span>";
+    return;
+  }
+  const vals=[p.a,p.b,p.c];
+  let ch=n+5; vals.forEach((v,i)=>{ if(i!==blank) ch+=String(v).length; });
+  eq.style.setProperty("--ch",ch);
+  const part=i=> i===blank ? bl : "<span>"+vals[i]+"</span>";
+  eq.innerHTML=part(0)+'<span class="op">'+symOf(p)+"</span>"+part(1)+'<span class="op">=</span>'+part(2);
+}
+function press(k){
+  if(!R || R.done || R.lock) return;
+  let s=R.input;
+  if(k==="go") return submit();
+  if(k==="del") s=s.slice(0,-1);
+  else if(k==="pm"){ if(R.extra!=="pm") return; s = s.charAt(0)==="-" ? s.slice(1) : "-"+s; }
+  else if(k==="dot"){ if(R.extra!=="dot" || s.includes(".")) return; s = s==="" ? "0." : s+"."; }
+  else if(k==="R"){ if(R.extra!=="R" || s==="" || s.includes("R")) return; s+="R"; }
+  else if(/^[0-9]$/.test(k)){ if(s.length>=7) return; s = s==="0" ? k : s==="-0" ? "-"+k : s+k; }
+  else return;
+  R.input=s; drawEq();
+}
+function submit(){
+  if(R.input==="" || R.input==="-") return;
+  const {p,ans,again}=R.cur, ok=same(R.input,ans), text=factText(p);
+  R.count++; R.lock=true;
+  const key=keyOf(p);
+  if(!ok) R.seen.set(key,{ok:false,p}); else if(!again && !R.seen.has(key)) R.seen.set(key,{ok:true,p});
+  if(ok){ R.right++;
+    $("#score").textContent=points(R.right,R.wrong); drawEq("ok"); R.wait=setTimeout(nextProblem,220); }
+  else{
+    R.wrong++; R.missed.set(text,1);
+    R.retry.push({p,due:R.count+3});
+    $("#score").textContent=points(R.right,R.wrong);
+    $("#msg").textContent="You typed "+fmtAns(R.input).trim()+". 10 points off."; drawEq("no");
+    R.wait=setTimeout(nextProblem,1300);
+  }
+}
+function loop(){
+  if(!R || R.done) return;
+  const el=(performance.now()-R.t0)/1000;
+  if(R.limit){
+    const left=R.limit-el;
+    $("#time").textContent=fmt(left);
+    $("#bar").style.transform="scaleX("+Math.max(0,left/R.limit)+")";
+    $("#clock").classList.toggle("low", left<=10);
+    if(left<=0) return finish(false);
+  } else { $("#time").textContent=fmt(Math.floor(el)+0.001); $("#bar").style.transform="scaleX(1)"; }
+  R.tick=requestAnimationFrame(loop);
+}
+function finish(cleared){
+  if(!R || R.done) return;
+  R.done=true; clearTimeout(R.wait); cancelAnimationFrame(R.tick);
+  const el=Math.max(1,(performance.now()-R.t0)/1000), secs=R.limit ? Math.min(el,R.limit) : el;
+  const p=P();
+  if(R.count===0 || !p){ if(p){ renderHome(); show("home"); } else { renderWho(); show("who"); } return; }
+  const G=GAMES[game], k="s|"+R.key, prev=p.bests[k], score=points(R.right,R.wrong); let isBest=false, bestOut;
+  if(R.limit){
+    if(prev==null || score>prev){ p.bests[k]=score; isBest = score>0; }
+    bestOut=p.bests[k]; $("#st-best-lbl").textContent="Best score";
+  } else {
+    if(cleared && (prev==null || secs<prev)){ p.bests[k]=Math.round(secs); isBest=true; }
+    bestOut = p.bests[k]!=null ? fmt(p.bests[k]) : "–"; $("#st-best-lbl").textContent="Best time";
+  }
+  /* progress record */
+  const s=p.games[game]||{rounds:0,right:0,count:0,secs:0};
+  p.games[game]={rounds:s.rounds+1, right:s.right+R.right, count:s.count+R.count, secs:Math.round(s.secs+secs)};
+  p.recent.unshift({g:game,label:R.label,t:R.limit,right:R.right,count:R.count,score,secs:Math.round(secs),at:Date.now()});
+  p.recent=p.recent.slice(0,40);
+  let added=0, cleared3=0;   /* review list: a miss resets the fact, a clean first try counts toward 3 rounds in a row */
+  R.seen.forEach((v,k)=>{ const e=p.review[k];
+    if(!v.ok){ if(!e) added++; p.review[k]= v.p.gen ? {g:v.p.g,q:v.p.q,ans:String(v.p.ans),streak:0} : {g:v.p.g,a:v.p.a,b:v.p.b,c:v.p.c,streak:0}; }
+    else if(e){ e.streak=(e.streak|0)+1; if(e.streak>=3){ delete p.review[k]; cleared3++; } }
+  });
+  const keys=Object.keys(p.review); if(keys.length>150){ keys.sort((x,y)=>p.review[y].streak-p.review[x].streak).slice(0,keys.length-150).forEach(k=>delete p.review[k]); }
+  persist(who);
+
+  $("#res-tag").textContent=p.name+" · "+G.name+" · "+R.label+" · "+(R.limit ? timeLabel(R.limit) : "Finished in "+fmt(secs));
+  $("#res-big").textContent=score;
+  $("#res-flag").hidden=!isBest;
+  $("#st-acc").textContent=Math.round(100*R.right/R.count)+"%";
+  $("#st-rate").textContent=R.right+" / "+R.wrong;
+  $("#st-best").textContent=bestOut;
+  const ul=$("#missed"); ul.innerHTML="";
+  R.missed.forEach((_,t)=>{ const li=document.createElement("li"); li.textContent=t; ul.appendChild(li); });
+  $("#missed-group").hidden = R.missed.size===0;
+  const left=Object.keys(p.review).length, rc=$("#res-clear");
+  rc.textContent=(cleared3 ? cleared3+(cleared3===1?" review fact":" review facts")+" mastered this round. " : "")+(left ? left+(left===1?" fact is":" facts are")+" still on the review list." : (cleared3 ? "The review list is empty." : ""));
+  rc.hidden=!rc.textContent;
+  show("results");
+}
+
+/* ---------- progress ---------- */
+function spark(vals){
+  if(vals.length<2) return "";
+  const W=160,H=40,pad=5, max=Math.max(...vals,1), step=(W-2*pad)/(vals.length-1);
+  const pts=vals.map((v,i)=>[pad+i*step, H-pad-(v/max)*(H-2*pad)]);
+  const line=pts.map(q=>q[0].toFixed(1)+","+q[1].toFixed(1)).join(" "), end=pts[pts.length-1];
+  return '<svg viewBox="0 0 '+W+" "+H+'" preserveAspectRatio="none" aria-hidden="true">'+
+    '<polygon points="'+pad+","+(H-pad)+" "+line+" "+(W-pad)+","+(H-pad)+'" fill="var(--accent)" opacity=".14"/>'+
+    '<polyline points="'+line+'" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>'+
+    '<circle cx="'+end[0].toFixed(1)+'" cy="'+end[1].toFixed(1)+'" r="3.5" fill="var(--accent)"/></svg>';
+}
+const rate = r => scoreOf(r)/Math.max(1,r.secs)*60;
+function renderProgress(){
+  const p=P(); if(!p){ renderWho(); show("who"); return; }
+  const t=totals(p);
+  $("#prog-name").textContent=p.name+"’s progress";
+  $("#pg-rounds").textContent=t.rounds; $("#pg-right").textContent=t.right;
+  $("#pg-acc").textContent = t.count ? Math.round(100*t.right/t.count)+"%" : "–";
+  const box=$("#pg-games"); box.innerHTML="";
+  ORDER.forEach(g=>{
+    const G=GAMES[g], s=p.games[g]; if(!s) return;
+    const d=document.createElement("div"); d.className="gs"; d.dataset.game=hueOf(g);
+    const runs=p.recent.filter(r=>r.g===g).slice(0,12).reverse().map(rate);
+    if(!s){ d.innerHTML="<h3><i>"+G.sym+"</i>"+G.name+'</h3><p>Not played yet</p>'; }
+    else{
+      const now=runs.length ? runs[runs.length-1] : 0;
+      d.innerHTML="<h3><i>"+G.sym+"</i>"+G.name+'</h3><span class="n">'+Math.round(now)+" <small>points per minute, last round</small></span>"+
+        "<p>"+s.rounds+(s.rounds===1?" round":" rounds")+" · "+Math.round(100*s.right/Math.max(1,s.count))+"% accuracy · best "+Math.round(Math.max(...runs,0))+" pts/min</p>"+
+        (spark(runs) || "<p>Play one more round to see a trend line.</p>");
+    }
+    box.appendChild(d);
+  });
+  if(!box.children.length) box.innerHTML='<p class="note" style="margin:0;color:var(--muted)">No rounds played yet.</p>';
+  const ml=$("#pg-miss"); ml.innerHTML="";
+  const facts=Object.keys(p.review).map(k=>p.review[k]).sort((x,y)=>x.streak-y.streak);
+  facts.slice(0,30).forEach(r=>{ const li=document.createElement("li"); li.dataset.game=hueOf(r.g);
+    li.innerHTML=esc(r.q!=null ? plain(r.q).replace(B,fmtAns(r.ans).trim()) : r.a+" "+GAMES[r.g].sym+" "+r.b+" = "+r.c)+"<small>"+(r.streak|0)+" of 3</small>"; ml.appendChild(li); });
+  $("#pg-miss-group").hidden=!facts.length;
+  const rl=$("#pg-recent"); rl.innerHTML="";
+  p.recent.slice(0,12).forEach(r=>{
+    const G=GAMES[r.g]; if(!G) return;
+    const li=document.createElement("li"); li.dataset.game=hueOf(r.g);
+    li.innerHTML='<span class="dot">'+(G.dot||G.sym)+'</span><span class="what"><b>'+esc(r.label||G.name)+"</b><span>"+day(r.at)+" · "+(r.t ? timeLabel(r.t) : "took "+fmt(r.secs))+"</span></span>"+
+      '<span class="res">'+scoreOf(r)+" pts<small>"+(r.right|0)+" right, "+((r.count|0)-(r.right|0))+" missed</small></span>";
+    rl.appendChild(li);
+  });
+  $("#pg-recent-group").hidden=!p.recent.length;
+  const del=$("#pg-delete"); del.textContent="Delete this player"; del.dataset.armed="";
+}
+
+/* ---------- wiring ---------- */
+$("#me").addEventListener("click",()=>{ renderWho(); show("who"); });
+$("#to-progress").addEventListener("click",()=>{ renderProgress(); show("progress"); });
+$("#prog-back").addEventListener("click",()=>{ renderHome(); show("home"); });
+$("#pg-delete").addEventListener("click",e=>{
+  const b=e.currentTarget, p=P(); if(!p) return;
+  if(!b.dataset.armed){ b.dataset.armed="1"; b.textContent="Tap again to delete "+p.name+" and all of their progress";
+    setTimeout(()=>{ b.dataset.armed=""; b.textContent="Delete this player"; },4000); return; }
+  removeProfile(who); who=null; store.set("ms.who",null); renderWho(); show("who");
+});
+$("#setup-back").addEventListener("click",()=>{ renderHome(); show("home"); });
+$("#start").addEventListener("click",()=>{ persist(who); startRound(); });
+$("#end").addEventListener("click",()=>finish(false));
+$("#res-home").addEventListener("click",()=>{ renderHome(); show("home"); });
+$("#res-again").addEventListener("click",startRound);
+$("#pad").addEventListener("click",e=>{ const b=e.target.closest("[data-k]"); if(b){ press(b.dataset.k); b.blur(); } });
+document.addEventListener("keydown",e=>{
+  if($("#play").hidden) return;
+  if(/^[0-9]$/.test(e.key)) press(e.key);
+  else if(e.key==="-") press("pm"); else if(e.key===".") press("dot"); else if(e.key==="r"||e.key==="R") press("R");
+  else if(e.key==="Backspace"){ e.preventDefault(); press("del"); }
+  else if(e.key==="Enter"){ e.preventDefault(); press("go"); }
+});
+document.addEventListener("gesturestart",e=>e.preventDefault());
+syncNote();
+if(who){ cfg=P().cfg; renderHome(); show("home"); } else { renderWho(); show("who"); }
+})();
+</script>
+</body>
+</html>
