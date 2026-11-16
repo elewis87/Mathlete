@@ -168,6 +168,37 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
 .frac span:last-child{padding:.08em .25em 0}
 .frac .blank{height:1.3em}
 .key.extra{grid-column:1 / -1;height:46px;font-size:1.15rem;color:var(--accent)}
+.subjects{display:flex;gap:8px;flex-wrap:wrap}
+.eq.text{flex-direction:column;gap:12px;white-space:normal;font-size:1rem;font-family:var(--body);font-weight:400;line-height:1.4;width:100%;text-align:center}
+.tblank{min-width:min(9em,80%);height:1.6em;font-family:var(--display);font-weight:600;font-size:clamp(1.6rem,6vw,2.6rem);padding:0 .4em;letter-spacing:.04em}
+.sent{margin:0;font-size:1.15rem;max-width:34ch;text-wrap:balance}
+.sent.big{font-family:var(--display);font-weight:500;font-size:clamp(1.4rem,5vw,2.2rem);max-width:22ch;line-height:1.4}
+.sent mark{background:var(--accent);color:var(--on-accent);border-radius:8px;padding:0 .25em}
+.cap{margin:0;color:var(--muted);font-size:.95rem}
+.prompt{margin:0;font-family:var(--display);font-weight:600;font-size:clamp(2rem,9vw,3.6rem);line-height:1.1}
+.prompt.letter{font-size:clamp(4rem,22vw,7rem);line-height:1}
+.ask{margin:0;font-family:var(--display);font-weight:600;font-size:1.5rem;color:var(--accent)}
+.words{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;max-width:640px}
+.word{padding:10px 14px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line);font-family:var(--display);font-weight:500;font-size:clamp(1.3rem,4.5vw,1.9rem)}
+.word.ok,.choices .key.ok{border-color:var(--good);color:var(--good)}
+.word.no,.choices .key.no{border-color:var(--bad);color:var(--bad)}
+.row.mid{justify-content:center}
+.cells{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
+.cell{display:grid;grid-template-columns:repeat(2,auto);gap:8px;padding:10px;border-radius:12px;background:var(--surface);border:1.5px solid var(--line)}
+.cell i{width:clamp(16px,5vw,26px);aspect-ratio:1;border-radius:50%;border:2px solid var(--line)}
+.cell i.on{background:var(--ink);border-color:var(--ink)}
+.kb{display:flex;flex-direction:column;gap:6px;width:100%;max-width:640px;margin:0 auto}
+.kr{display:flex;gap:5px;justify-content:center;width:100%}
+.kb .key{flex:1 1 0;min-width:0;height:clamp(40px,6.5vh,54px);font-size:1.25rem;border-radius:10px}
+.kb .key.wide{flex:2.4 1 0;font-size:1rem}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%;max-width:640px;margin:0 auto}
+.choices .key{height:auto;min-height:58px;font-size:1.2rem;padding:8px 10px;overflow-wrap:anywhere}
+.dots{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:460px;margin:0 auto}
+.dotgrid{display:grid;grid-template-columns:repeat(2,72px);gap:12px}
+.dot{width:72px;height:72px;border-radius:50%;background:var(--key);border:2px solid var(--line);font-family:var(--display);font-weight:600;font-size:1.2rem;color:var(--muted)}
+.dot[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.dots .kr{gap:10px} .dots .kr .key{flex:1;height:54px;font-size:1.1rem}
+@media (max-height:640px){.dotgrid{grid-template-columns:repeat(2,56px);gap:8px}.dot{width:56px;height:56px}}
 .rev{min-height:1.4em;text-align:center;font-size:.85rem;font-weight:600;color:var(--accent)}
 .msg{height:1.5em;font-weight:500;color:var(--bad);font-size:1rem}
 @keyframes blink{50%{opacity:0}}
@@ -181,7 +212,7 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
 @media (min-width:820px) and (orientation:landscape){
   .stage{grid-template-columns:1fr 440px;grid-template-rows:auto auto 1fr;column-gap:32px}
   .hud,.clock{grid-column:1 / -1}
-  .pad{align-self:center}
+  .pad,.kb,.choices,.dots{align-self:center}
   .key{height:clamp(60px,14vh,96px)}
 }
 
@@ -298,14 +329,12 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
     <div class="homebar">
       <header class="brand">
         <h1>Mathlete</h1>
-        <p>Pick a game. Fill in the blank. Beat the clock.</p>
+        <p>Pick a subject and a game. Beat the clock.</p>
       </header>
       <button class="me" id="me" aria-label="Switch player"><span class="av" id="me-av"></span><span id="me-name"></span></button>
     </div>
-    <h3 class="sect">Basics</h3>
-    <div class="games" id="games"></div>
-    <h3 class="sect">Advanced</h3>
-    <div class="games adv" id="games-adv"></div>
+    <div class="subjects" id="subjects"></div>
+    <div id="home-body" style="display:flex;flex-direction:column;gap:20px"></div>
     <button class="ghost" id="to-progress">See progress</button>
     <p class="foot" id="sync-home"></p>
   </div>
@@ -347,6 +376,12 @@ h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;font-weight:600}
       <button class="key del" data-k="del" aria-label="Delete">&#9003;</button>
       <button class="key" data-k="0">0</button>
       <button class="key go" data-k="go">Enter</button>
+    </div>
+    <div class="kb" id="kb" hidden></div>
+    <div class="choices" id="choices" hidden></div>
+    <div class="dots" id="dots" hidden>
+      <div class="dotgrid"><button class="dot" data-dot="1" aria-pressed="false" aria-label="Dot 1">1</button><button class="dot" data-dot="4" aria-pressed="false" aria-label="Dot 4">4</button><button class="dot" data-dot="2" aria-pressed="false" aria-label="Dot 2">2</button><button class="dot" data-dot="5" aria-pressed="false" aria-label="Dot 5">5</button><button class="dot" data-dot="3" aria-pressed="false" aria-label="Dot 3">3</button><button class="dot" data-dot="6" aria-pressed="false" aria-label="Dot 6">6</button></div>
+      <div class="kr"><button class="key" data-k="clear">Clear</button><button class="key go" data-k="go">Enter</button></div>
     </div>
   </div>
 </section>
@@ -611,7 +646,150 @@ const ADV = ["pem","sq","long","rem","neg","frac","pct","dec","eqn","exp"];
 const hueOf = g => (GAMES[g] && GAMES[g].hue) || g;
 /*GEN-END*/
 
-const ORDER = ["mul","div","add","sub","mix"].concat(ADV);
+/*LA-START*/
+/* ---------- words: spelling, parts of speech, Spanish, Braille ---------- */
+const canSpeak = "speechSynthesis" in window && typeof window.SpeechSynthesisUtterance!=="undefined";
+function say(text,lang){
+  if(!canSpeak) return;
+  try{ window.speechSynthesis.cancel(); const u=new window.SpeechSynthesisUtterance(text); u.lang=lang||"en-US"; u.rate=0.85; window.speechSynthesis.speak(u); }catch(e){}
+}
+function hush(){ if(canSpeak){ try{ window.speechSynthesis.cancel(); }catch(e){} } }
+const tb = (state,text) => '<span class="blank tblank'+(state?" "+state:"")+'">'+esc(text)+"</span>";
+const sayBtns = list => '<div class="row mid">'+list.map((s,i)=>'<button class="pill" data-say="'+i+'">'+esc(s[0])+"</button>").join("")+"</div>";
+const an = w => (/^[aeiou]/.test(w) ? "an " : "a ")+w;
+const bare = w => w.replace(/[.,!?]/g,"");
+const capHtml = t => '<p class="cap">'+t+"</p>";
+
+const SPELL = [
+ ["jump|The frog can jump high.","fish|A fish swims in the pond.","play|We play at the park.","home|I walk home after school.","said|Mom said it was time to eat.","look|Please look at the board.","blue|The sky is blue today.","tree|A bird sat in the tree.","with|Come with me to the store.","make|Let us make a card.","rain|The rain made a puddle.","book|I read a book at night.","good|That was a good game.","they|I hope they come soon.","cake|We ate cake at the party.","milk|I drink milk each morning.","frog|The frog sat on a log.","ship|The ship sailed away.","door|Please close the door.","star|I saw a bright star.","hand|Raise your hand to speak.","bird|The bird built a nest.","come|Will you come to my house?","went|We went to the zoo.","some|I would like some water.","give|Please give me the ball.","snow|The snow is cold.","duck|The duck swam across the lake.","nest|There are eggs in the nest.","ball|Kick the ball to me."],
+ ["because|I wore a coat because it was cold.","friend|My friend lives next door.","people|Many people came to the game.","school|The school bus was late.","water|The plant needs water.","light|Turn on the light, please.","night|The stars come out at night.","right|Turn right at the corner.","write|Please write your name.","could|I could hear the music.","would|I would like more soup.","their|The kids hung up their coats.","where|Tell me where you put it.","laugh|The joke made me laugh.","clean|Please clean your room.","sleep|I sleep in a bunk bed.","dream|I had a funny dream.","train|The train rolled down the track.","brown|The bear has brown fur.","round|A ball is round.","house|Our house has a red door.","mouse|A mouse ran under the table.","thank|I want to thank you.","think|I think it will rain.","catch|Can you catch the ball?","lunch|We eat lunch at noon.","happy|The puppy looks happy.","funny|That movie was funny.","story|Dad told a bedtime story.","every|I brush my teeth every day."],
+ ["different|We chose different colors.","favorite|Blue is my favorite color.","beautiful|The sunset was beautiful.","minute|Wait one minute, please.","caught|She caught the fly ball.","thought|I thought the test was easy.","through|We walked through the tunnel.","enough|We have enough chairs.","piece|May I have a piece of pie?","weather|The weather is sunny today.","surprise|The party was a surprise.","kitchen|Dinner is in the kitchen.","picture|She drew a picture of a horse.","question|Raise your hand to ask a question.","straight|Draw a straight line.","believe|I believe you can do it.","special|Today is a special day.","library|We borrowed books from the library.","measure|Use a ruler to measure the desk.","island|The boat sailed to an island.","answer|Do you know the answer?","earth|Plants grow in the earth.","heard|I heard a loud noise.","built|We built a fort.","wrong|I took a wrong turn.","knee|He scraped his knee.","climb|We like to climb trees.","quiet|Please be quiet in the hall.","quite|The soup is quite hot.","always|She always tells the truth."],
+ ["although|We played although it was raining.","breakfast|I ate eggs for breakfast.","calendar|Mark the date on the calendar.","certain|I am certain I locked the door.","decide|You must decide which one you want.","describe|Please describe what you saw.","exercise|Daily exercise keeps you strong.","experience|The trip was a great experience.","February|My birthday is in February.","government|The government makes the laws.","height|The nurse measured my height.","imagine|Try to imagine a purple cow.","journey|The journey took three days.","language|Spanish is a beautiful language.","material|Cotton is a soft material.","mountain|We hiked up the mountain.","natural|Honey is a natural food.","notice|Did you notice the new sign?","ordinary|It was an ordinary day.","particular|I like one particular song.","pressure|Check the pressure in the tires.","probably|It will probably snow tonight.","promise|I promise to be on time.","remember|Please remember your lunch.","sentence|Write one sentence about your day.","separate|Keep the colors in separate piles.","strength|Lifting weights builds strength.","therefore|It rained and therefore the game ended.","various|The shop sells various toys.","weight|The weight of the box surprised me."],
+ ["accident|The spill was an accident.","ancient|We studied ancient Egypt.","appreciate|I appreciate your help.","average|The average score was high.","bargain|The bike was a real bargain.","bruise|The fall left a bruise on my arm.","category|Pick a category for the game.","communicate|We communicate by phone.","competition|She won the spelling competition.","curiosity|The kitten was full of curiosity.","definite|We need a definite answer.","determine|Tests determine the cause.","disappear|The sun will disappear behind the clouds.","environment|We should protect the environment.","especially|I love fruit, especially peaches.","explanation|The teacher gave a clear explanation.","familiar|Your face looks familiar.","frequently|We frequently visit our grandparents.","immediately|Call me immediately when you arrive.","individual|Each individual received a prize.","interrupt|Please do not interrupt the speaker.","leisure|I read in my leisure time.","lightning|We saw lightning in the sky.","muscle|He pulled a muscle in his leg.","neighbor|Our neighbor has two dogs.","occasion|A wedding is a special occasion.","opportunity|This is a great opportunity to learn.","physical|Soccer is a physical sport.","recommend|I recommend the pasta.","restaurant|We ate at a new restaurant."],
+ ["necessary|A ticket is necessary to enter.","accommodate|The room can accommodate ten people.","achievement|Winning was a big achievement.","acquire|It takes time to acquire a skill.","apparent|It was apparent that he was tired.","argument|They settled the argument calmly.","committee|The committee meets on Monday.","conscience|My conscience told me to be honest.","convenience|The store is open late for your convenience.","criticize|Do not criticize others unfairly.","desperate|The team made a desperate final play.","dictionary|Look up the word in a dictionary.","embarrass|I did not mean to embarrass you.","exaggerate|Fishermen often exaggerate the size of a catch.","existence|Scientists proved the existence of the planet.","foreign|She speaks a foreign language.","guarantee|The watch comes with a guarantee.","humorous|He told a humorous story.","independent|Cats are independent animals.","intelligence|The dolphin showed great intelligence.","knowledge|Reading builds knowledge.","marriage|Their marriage lasted fifty years.","mischievous|The mischievous puppy chewed a shoe.","occurrence|Rain is a common occurrence here.","parallel|The two roads run parallel.","privilege|It is a privilege to be here.","rhythm|The drummer kept a steady rhythm.","schedule|Check the bus schedule.","temperature|The temperature dropped overnight.","vacuum|Please vacuum the carpet."],
+ ["accessible|The ramp makes the building accessible.","acknowledge|Please acknowledge that you got my note.","adolescent|An adolescent is no longer a child.","bureaucracy|The permit was delayed by bureaucracy.","camouflage|The lizard uses camouflage to hide.","colleague|My colleague helped me finish the report.","conscientious|She is a conscientious student.","correspondence|We kept up our correspondence by mail.","deceive|Magicians deceive the eye.","dilemma|Choosing a team was a real dilemma.","endeavor|Climbing the peak was a bold endeavor.","fluorescent|The office has fluorescent lights.","fulfill|He worked hard to fulfill his goal.","hierarchy|The army has a strict hierarchy.","hygiene|Washing your hands is good hygiene.","inevitable|Change is inevitable.","liaison|She is the liaison between the two teams.","maintenance|The car needs regular maintenance.","maneuver|The driver had to maneuver around the cones.","miniature|He collects miniature trains.","nuisance|The mosquitoes were a nuisance.","perseverance|Her perseverance paid off.","questionnaire|Please fill out the questionnaire.","receipt|Keep the receipt for the shoes.","reminiscent|The smell was reminiscent of summer.","silhouette|We saw a silhouette in the window.","sovereign|It is a sovereign nation.","susceptible|Young plants are susceptible to frost.","threshold|He paused at the threshold of the room.","unanimous|The vote was unanimous."],
+ ["aberration|The warm day was an aberration in winter.","acquiesce|He chose to acquiesce to their request.","ambiguous|The directions were ambiguous.","anonymous|The gift came from an anonymous donor.","bourgeois|The novel mocks bourgeois habits.","chauffeur|The chauffeur opened the car door.","connoisseur|She is a connoisseur of fine cheese.","conscious|He was conscious of the time.","entrepreneur|The entrepreneur started three companies.","facetious|His facetious remark made us groan.","hemorrhage|The doctor stopped the hemorrhage.","idiosyncrasy|Humming while working is his idiosyncrasy.","indict|The jury voted to indict the suspect.","labyrinth|We got lost in the labyrinth.","lieutenant|The lieutenant gave the order.","magnanimous|The winner was magnanimous toward her rival.","mnemonic|A rhyme can be a helpful mnemonic.","onomatopoeia|The word buzz is an example of onomatopoeia.","paradigm|The discovery changed the paradigm.","pharaoh|The pharaoh ruled ancient Egypt.","pneumonia|He recovered from pneumonia.","pseudonym|The author writes under a pseudonym.","rendezvous|We planned a rendezvous at noon.","sacrilegious|Some found the joke sacrilegious.","surveillance|The bank has video surveillance.","synonymous|Her name is synonymous with kindness.","ubiquitous|Phones are ubiquitous today.","vengeance|The villain swore vengeance.","vicissitude|Every life has some vicissitude.","zealous|She is a zealous supporter of the team."]
+];
+function spellQ(grade){
+  const [w,s]=anyOf(SPELL[grade]).split("|");
+  return {q:s.replace(new RegExp("\\b"+w+"\\b","i"),B), ans:w};
+}
+
+const POSNAME = {n:"noun", v:"verb", j:"adjective", d:"adverb", r:"pronoun", p:"preposition", c:"conjunction", i:"interjection"};
+const POSSETS = [["n","v"],["n","v","j"],["n","v","j","d"],["n","v","j","d","r","p"],["n","v","j","d","r","p","c","i"]];
+const SENT = ["The_x small_j kitten_n slept_v quietly_d under_p the_x porch._n","She_r kicked_v the_x red_j ball_n over_p the_x fence._n","Wow,_i that_x rocket_n flew_v high!_d",
+ "We_r ate_v warm_j pizza_n and_c cold_j salad._n","The_x tall_j giraffe_n ate_v leaves_n slowly._d","He_r ran_v quickly_d across_p the_x muddy_j field._n","Birds_n sing_v sweetly_d in_p the_x morning._n",
+ "The_x loud_j thunder_n scared_v the_x puppy._n","They_r built_v a_x huge_j castle_n with_p sand._n","Ouch,_i the_x hot_j pan_n burned_v me!_r","The_x teacher_n wrote_v neatly_d on_p the_x board._n",
+ "I_r like_v apples_n but_c she_r likes_v grapes._n","A_x green_j frog_n jumped_v into_p the_x pond._n","The_x old_j truck_n rumbled_v loudly_d down_p the_x road._n","You_r can_x swim_v or_c you_r can_x hike._v",
+ "The_x happy_j children_n played_v outside._d","Hooray,_i our_x team_n won_v the_x game!_n","The_x chef_n carefully_d sliced_v the_x ripe_j tomato._n","It_r rained_v heavily_d during_p the_x night._n",
+ "The_x brave_j firefighter_n climbed_v the_x ladder._n","Snow_n fell_v softly_d on_p the_x quiet_j town._n","The_x dog_n barked_v because_c it_r heard_v a_x noise._n","My_x brother_n reads_v long_j books_n often._d",
+ "The_x river_n flows_v between_p two_x steep_j hills._n","Hey,_i wait_v for_p us!_r","The_x clever_j fox_n hid_v behind_p a_x bush._n","Maria_n painted_v a_x bright_j picture_n yesterday._d",
+ "The_x bus_n arrived_v late,_d so_c we_r walked._v","Tiny_j ants_n carried_v crumbs_n toward_p the_x nest._n","He_r whispered_v softly_d to_p his_x friend._n","The_x sleepy_j baby_n yawned_v and_c stretched._v",
+ "Oops,_i I_r dropped_v the_x shiny_j plate._n","The_x wind_n blew_v fiercely_d through_p the_x trees._n","They_r always_d share_v their_x toys._n","The_x pilot_n landed_v the_x plane_n safely._d",
+ "A_x curious_j girl_n asked_v many_x questions._n","The_x moon_n shines_v brightly_d above_p the_x lake._n","We_r waited_v patiently_d until_c the_x store_n opened._v","The_x hungry_j bear_n searched_v for_p berries._n",
+ "She_r sings_v beautifully,_d and_c he_r plays_v piano._n","The_x players_n ran_v onto_p the_x wet_j grass._n","Yikes,_i a_x giant_j spider_n crawled_v nearby!_d","Grandpa_n told_v us_r a_x funny_j story._n",
+ "The_x students_n listened_v closely_d to_p the_x speaker._n","The_x soup_n smells_v delicious._j","Dark_j clouds_n gathered_v before_p the_x storm._n","The_x cat_n chased_v it_r around_p the_x yard._n",
+ "You_r should_x pack_v gloves_n or_c mittens._n","The_x coach_n spoke_v calmly_d after_p the_x loss._n","Fresh_j bread_n bakes_v inside_p the_x oven._n"
+].map(s=>{ const t=s.split(" ").map(x=>x.split("_")); return {words:t.map(x=>x[0]), tags:t.map(x=>x[1]), text:t.map(x=>x[0]).join(" ")}; });
+function posPick(level){
+  const tag=anyOf(POSSETS[level]), s=anyOf(SENT.filter(x=>x.tags.includes(tag)));
+  const idx=anyOf(s.tags.map((t,i)=>t===tag?i:-1).filter(i=>i>=0));
+  return {tag,s,idx};
+}
+const posOptions = ans => { const set=POSSETS[cfg.pos.level].map(t=>POSNAME[t]); return set.includes(ans) ? set : POSSETS[4].map(t=>POSNAME[t]); };
+function posQ(level){ const {tag,s,idx}=posPick(level); return {q:s.words.map((w,i)=>i===idx?"["+w+"]":w).join(" "), ans:POSNAME[tag], options:POSSETS[level].map(t=>POSNAME[t])}; }
+function huntBuild(name,text){
+  const s=SENT.find(x=>x.text===text), target=Object.keys(POSNAME).find(k=>POSNAME[k]===name);
+  return s && target ? {q:name+"|"+text, ans:name, words:s.words, tags:s.tags, target} : null;
+}
+function huntQ(level){ const {tag,s}=posPick(level); return huntBuild(POSNAME[tag],s.text); }
+
+const VOCAB = [
+ ["Greetings",[["hola","hello"],["adiós","goodbye"],["gracias","thank you"],["por favor","please"],["sí","yes"],["buenos días","good morning"],["buenas noches","good night"],["lo siento","I am sorry"],["de nada","you are welcome"],["hasta luego","see you later"]]],
+ ["Numbers",[["uno","one"],["dos","two"],["tres","three"],["cuatro","four"],["cinco","five"],["seis","six"],["siete","seven"],["ocho","eight"],["nueve","nine"],["diez","ten"],["once","eleven"],["doce","twelve"],["veinte","twenty"],["cien","one hundred"]]],
+ ["Colors",[["rojo","red"],["azul","blue"],["verde","green"],["amarillo","yellow"],["negro","black"],["blanco","white"],["anaranjado","orange (color)"],["morado","purple"],["rosado","pink"],["gris","gray"],["marrón","brown"]]],
+ ["Family",[["madre","mother"],["padre","father"],["hermano","brother"],["hermana","sister"],["abuelo","grandfather"],["abuela","grandmother"],["hijo","son"],["hija","daughter"],["tío","uncle"],["tía","aunt"],["primo","cousin"],["bebé","baby"],["familia","family"],["amigo","friend"]]],
+ ["Animals",[["perro","dog"],["gato","cat"],["pájaro","bird"],["pez","fish"],["caballo","horse"],["vaca","cow"],["cerdo","pig"],["pollo","chicken"],["conejo","rabbit"],["tortuga","turtle"],["oso","bear"],["ratón","mouse"],["pato","duck"],["mono","monkey"]]],
+ ["Food",[["manzana","apple"],["pan","bread"],["leche","milk"],["agua","water"],["queso","cheese"],["huevo","egg"],["arroz","rice"],["carne","meat"],["fruta","fruit"],["naranja","orange (fruit)"],["jugo","juice"],["sopa","soup"],["helado","ice cream"],["galleta","cookie"],["plátano","banana"]]],
+ ["School and home",[["escuela","school"],["libro","book"],["lápiz","pencil"],["maestro","teacher"],["casa","house"],["mesa","table"],["silla","chair"],["puerta","door"],["ventana","window"],["cama","bed"],["cocina","kitchen"],["mochila","backpack"],["papel","paper"],["reloj","clock"]]],
+ ["Days and time",[["lunes","Monday"],["martes","Tuesday"],["miércoles","Wednesday"],["jueves","Thursday"],["viernes","Friday"],["sábado","Saturday"],["domingo","Sunday"],["hoy","today"],["mañana","tomorrow"],["ayer","yesterday"],["día","day"],["noche","night"],["semana","week"],["año","year"]]],
+ ["Action words",[["comer","to eat"],["beber","to drink"],["correr","to run"],["saltar","to jump"],["leer","to read"],["escribir","to write"],["dormir","to sleep"],["jugar","to play"],["hablar","to speak"],["cantar","to sing"],["bailar","to dance"],["caminar","to walk"],["nadar","to swim"],["mirar","to look"]]]
+];
+const ALLV = [].concat(...VOCAB.map(t=>t[1]));
+const vpool = level => level<VOCAB.length ? VOCAB[level][1] : ALLV;
+const vtopic = pair => { const t=VOCAB.find(x=>x[1].includes(pair)); return t ? t[1] : ALLV; };
+function vopts(pool,pair,side){
+  const out=[pair[side]], rest=shuffle(pool.filter(x=>x[side]!==pair[side]).map(x=>x[side]));
+  rest.forEach(v=>{ if(out.length<4 && !out.includes(v)) out.push(v); });
+  return shuffle(out);
+}
+const esBuild = (mode,pair,pool) => mode==="say" ? {q:"say|"+pair[1], ans:pair[0], es:pair[0], en:pair[1], options:vopts(pool,pair,0)}
+  : mode==="hear" ? {q:"hear|"+pair[0], ans:pair[1], es:pair[0], en:pair[1], options:vopts(pool,pair,1)}
+  : {q:"write|"+pair[1], ans:pair[0], es:pair[0], en:pair[1]};
+const esQ = (mode,level) => { const pool=vpool(level); return esBuild(mode,anyOf(pool),pool); };
+const esBack = (mode,r) => { const key=r.q.split("|")[1], pair=ALLV.find(x=>x[mode==="hear"?0:1]===key); return pair ? esBuild(mode,pair,vtopic(pair)) : null; };
+const esFact = (mode,r) => { const key=r.q.split("|")[1]; return mode==="hear" ? key+" = "+r.ans : key+" = "+r.ans; };
+
+const BRL = {a:"1",b:"12",c:"14",d:"145",e:"15",f:"124",g:"1245",h:"125",i:"24",j:"245",k:"13",l:"123",m:"134",n:"1345",o:"135",p:"1234",q:"12345",r:"1235",s:"234",t:"2345",u:"136",v:"1236",w:"2456",x:"1346",y:"13456",z:"1356"};
+const BRSETS = ["abcdefghij","klmnopqrst","uvwxyz","abcdefghijklmnopqrstuvwxyz"];
+const BRWORDS = ["cat","dog","sun","hat","bed","pig","cup","map","red","box","fish","book","tree","milk","jump","star","frog","hand","kite","lion","moon","nest","play","rain","ship","wolf","zebra","quiz","five","yard"];
+const cell = dots => '<span class="cell">'+[1,4,2,5,3,6].map(d=>'<i'+(dots.includes(d)?' class="on"':"")+"></i>").join("")+"</span>";
+const brChar = dots => String.fromCharCode(0x2800 + dots.split("").reduce((s,d)=>s+(1<<(d-1)),0));
+const brText = w => w.split("").map(ch=>BRL[ch] ? brChar(BRL[ch]) : "").join("");
+const brReadQ = level => { const w = level<4 ? anyOf(BRSETS[level].split("")) : anyOf(BRWORDS); return {q:"read|"+w, ans:w}; };
+const brWriteQ = level => { const w=anyOf(BRSETS[level].split("")); return {q:"dots|"+w, ans:BRL[w]}; };
+const word2 = r => r.q.split("|")[1];
+
+Object.assign(GAMES, {
+  spell:{ name:"Spelling Bee", sym:"Abc", dot:"A", kind:"gen", subject:"la", hue:"add", pad:"abc", hint:"Listen to the word, then spell it",
+    levels:SPELL.map((list,i)=>L("Grade "+(i+1), list[2].split("|")[0]+", "+list[9].split("|")[0], ()=>spellQ(i))),
+    says(p){ return [["Hear the word",p.ans,"en-US"],["Hear it in a sentence",p.q.replace(B,p.ans),"en-US"]]; },
+    speak(p){ return [p.ans,"en-US"]; },
+    draw(p,state,input){ return tb(state, state ? p.ans : input)+'<p class="sent">'+esc(state ? p.q.replace(B,p.ans) : p.q.replace(B,"______"))+"</p>"+
+      (canSpeak ? sayBtns(this.says(p)) : capHtml("Unscramble: "+esc(p.ans.toLowerCase().split("").sort().join(" ")))); },
+    fact:r=>r.ans, fromReview:r=>({q:r.q, ans:r.ans}) },
+  pos:{ name:"Parts of Speech", sym:"n. v.", dot:"N", kind:"gen", subject:"la", hue:"div", pad:"choice", hint:"Name the part of speech of the highlighted word",
+    levels:[L("Nouns and verbs","dog, ran",()=>posQ(0)), L("Add adjectives","red, tall",()=>posQ(1)), L("Add adverbs","quickly",()=>posQ(2)), L("Add pronouns and prepositions","she, under",()=>posQ(3)), L("All eight parts of speech","and, wow",()=>posQ(4))],
+    draw(p){ return '<p class="sent big">'+esc(p.q).replace(/\[([^\]]+)\]/,"<mark>$1</mark>")+"</p>"; },
+    wrong:(p,input)=>"You picked "+input+".",
+    fact:r=>{ const m=/\[([^\]]+)\]/.exec(r.q); return (m ? bare(m[1]) : "?")+" = "+r.ans; },
+    fromReview:r=>({q:r.q, ans:r.ans, options:posOptions(r.ans)}) },
+  hunt:{ name:"Word Hunt", sym:"Aa", dot:"W", kind:"gen", subject:"la", hue:"sub", pad:"none", hint:"Tap one word that fits",
+    levels:[L("Nouns and verbs","tap a verb",()=>huntQ(0)), L("Add adjectives","tap an adjective",()=>huntQ(1)), L("Add adverbs","tap an adverb",()=>huntQ(2)), L("Add pronouns and prepositions","tap a pronoun",()=>huntQ(3)), L("All eight parts of speech","tap a conjunction",()=>huntQ(4))],
+    draw(p,state,input,tap){ return '<p class="ask">Tap '+esc(an(p.ans))+'</p><div class="words">'+p.words.map((w,i)=>
+      '<button class="word'+(state && p.tags[i]===p.target ? " ok" : state==="no" && i===tap ? " no" : "")+'" data-tap="'+i+'">'+esc(w)+"</button>").join("")+"</div>"; },
+    check:(p,input,tap)=>p.tags[tap]===p.target,
+    wrong:(p,input)=>bare(input)+" is not "+an(p.ans)+".",
+    fact:r=>{ const b=huntBuild(r.ans, r.q.split("|")[1]); return b ? b.words.filter((w,i)=>b.tags[i]===b.target).map(bare).join(", ")+" = "+r.ans : r.ans; },
+    fromReview:r=>huntBuild(r.ans, r.q.split("|")[1]||"") },
+  eswords:{ name:"Spanish Words", sym:"Hola", dot:"H", kind:"gen", subject:"es", hue:"add", pad:"choice", hint:"Pick the Spanish word",
+    levels:VOCAB.map((t,i)=>L(t[0], t[1][0][0]+", "+t[1][1][0], ()=>esQ("say",i))).concat([L("Everything","all topics",()=>esQ("say",VOCAB.length))]),
+    draw(p,state){ return capHtml("How do you say this in Spanish?")+'<p class="prompt">'+esc(p.en)+"</p>"; },
+    wrong:(p,input)=>"You picked "+input+".", fact:r=>esFact("say",r), fromReview:r=>esBack("say",r) },
+  eslisten:{ name:"Spanish Listening", sym:"¿?", dot:"L", kind:"gen", subject:"es", hue:"mul", pad:"choice", hint:"Listen, then pick what it means",
+    levels:VOCAB.map((t,i)=>L(t[0], t[1][0][1]+", "+t[1][1][1], ()=>esQ("hear",i))).concat([L("Everything","all topics",()=>esQ("hear",VOCAB.length))]),
+    says(p){ return [["Hear it again",p.es,"es-MX"]]; }, speak(p){ return [p.es,"es-MX"]; },
+    draw(p,state){ return capHtml("What does this mean in English?")+((canSpeak && !state) ? sayBtns(this.says(p)) : '<p class="prompt">'+esc(p.es)+"</p>"); },
+    wrong:(p,input)=>"You picked "+input+".", fact:r=>esFact("hear",r), fromReview:r=>esBack("hear",r) },
+  eswrite:{ name:"Spanish Spelling", sym:"ñ", dot:"ñ", kind:"gen", subject:"es", hue:"sub", pad:"abc", keys:"es", hint:"Type the Spanish word, with its accent marks",
+    levels:VOCAB.map((t,i)=>L(t[0], t[1][0][0]+", "+t[1][1][0], ()=>esQ("write",i))).concat([L("Everything","all topics",()=>esQ("write",VOCAB.length))]),
+    draw(p,state,input){ return capHtml("Type this in Spanish")+'<p class="prompt">'+esc(p.en)+"</p>"+tb(state, state ? p.ans : input); },
+    fact:r=>esFact("write",r), fromReview:r=>esBack("write",r) },
+  brread:{ name:"Read Braille", sym:"⠃⠗", dot:"⠃", kind:"gen", subject:"br", hue:"mix", pad:"abc", hint:"Type the letters the dots stand for",
+    levels:[L("Letters a to j","a b c",()=>brReadQ(0)), L("Letters k to t","k l m",()=>brReadQ(1)), L("Letters u to z","u v w",()=>brReadQ(2)), L("All letters","a to z",()=>brReadQ(3)), L("Short words","cat, moon",()=>brReadQ(4))],
+    draw(p,state,input){ const w=word2(p); return capHtml(w.length>1 ? "What word is this?" : "What letter is this?")+'<div class="cells">'+w.split("").map(ch=>cell(BRL[ch].split("").map(Number))).join("")+"</div>"+tb(state, state ? p.ans : input); },
+    fact:r=>brText(r.ans)+" = "+r.ans, fromReview:r=>(/^[a-z]+$/.test(r.ans) ? {q:r.q, ans:r.ans} : null) },
+  brwrite:{ name:"Write Braille", sym:"⠿", dot:"⠿", kind:"gen", subject:"br", hue:"div", pad:"dots", hint:"Tap the raised dots, then Enter",
+    levels:[L("Letters a to j","a b c",()=>brWriteQ(0)), L("Letters k to t","k l m",()=>brWriteQ(1)), L("Letters u to z","u v w",()=>brWriteQ(2)), L("All letters","a to z",()=>brWriteQ(3))],
+    draw(p,state){ return capHtml("Tap the dots for this letter")+'<p class="prompt letter">'+esc(word2(p))+"</p>"+(state ? '<div class="cells">'+cell(p.ans.split("").map(Number))+"</div>" : ""); },
+    wrong:(p,input)=>"You tapped dots "+input.split("").join(" ")+".",
+    fact:r=>word2(r)+" = dots "+r.ans.split("").join(" ")+" "+brChar(r.ans), fromReview:r=>(BRL[word2(r)]===r.ans ? {q:r.q, ans:r.ans} : null) }
+});
+const WORDS = ["spell","pos","hunt","eswords","eslisten","eswrite","brread","brwrite"];
+const SUBJECTS = [["math","Math"],["la","Language Arts"],["es","Spanish"],["br","Braille"]];
+/*LA-END*/
+
+const ORDER = ["mul","div","add","sub","mix"].concat(ADV, WORDS);
 const DEFAULTS = {
   mul:{tables:range(0,15), max:15, time:120, blank:"answer"},
   div:{tables:range(1,15), max:15, time:120, blank:"answer"},
@@ -620,6 +798,7 @@ const DEFAULTS = {
   mix:{ops:["mul","div","add","sub"], time:120, blank:"answer"}
 };
 ADV.forEach(g=>{ DEFAULTS[g]={level:0, time: g==="long" ? 180 : 120, blank:"answer"}; });
+WORDS.forEach(g=>{ DEFAULTS[g]={level:0, time: g==="spell" ? 180 : 120, blank:"answer"}; });
 
 /* ---------- players and saved progress ---------- */
 const fitMax = t => { const m=Math.max(0,...t); return m<=10 ? 10 : m<=12 ? 12 : 15; };
@@ -648,8 +827,8 @@ function normalize(p){
   if(p.review && typeof p.review==="object"){   /* stored as a list, older saves as a map */
     Object.keys(p.review).forEach(k=>{ const r=p.review[k]; if(!r) return; const st=Math.max(0,Math.min(2,r.streak|0));
       if(OPS.includes(r.g)) review[r.g+":"+(+r.a)+"_"+(+r.b)]={g:r.g,a:+r.a,b:+r.b,c:+r.c,streak:st};
-      else if(GAMES[r.g] && GAMES[r.g].kind==="gen" && typeof r.q==="string" && r.q.length<=80 && r.q.includes(B)){
-        const q=r.q, ans=String(r.ans).slice(0,12); review[r.g+":"+q]={g:r.g,q,ans,streak:st}; } });
+      else if(GAMES[r.g] && GAMES[r.g].kind==="gen" && typeof r.q==="string" && r.q.length<=200 && (GAMES[r.g].fact || r.q.includes(B))){
+        const q=r.q, ans=String(r.ans).slice(0,40); review[r.g+":"+q]={g:r.g,q,ans,streak:st}; } });
   } else if(p.miss){   /* oldest saves kept missed facts as text */
     Object.keys(p.miss).forEach(t=>{ const m=/^(\d+) (.) (\d+) = (\d+)$/.exec(t), g=m && OPS.find(o=>GAMES[o].sym===m[2]);
       if(g) review[g+":"+m[1]+"_"+m[3]]={g,a:+m[1],b:+m[3],c:+m[4],streak:0}; });
@@ -901,12 +1080,23 @@ function card(g,small){
   b.addEventListener("click",()=>{ game=g; renderSetup(); show("setup"); });
   return b;
 }
+let subject = store.get("ms.subject","math");
 function renderHome(){
   const p=P(); if(!p){ renderWho(); show("who"); return; }
   $("#me-av").className="av c"+p.hue; $("#me-av").textContent=p.name.charAt(0).toUpperCase(); $("#me-name").textContent=p.name;
-  const box=$("#games"), adv=$("#games-adv"); box.innerHTML=""; adv.innerHTML="";
-  OPS.concat("mix").forEach(g=>box.appendChild(card(g,false)));
-  ADV.forEach(g=>adv.appendChild(card(g,true)));
+  if(!SUBJECTS.some(x=>x[0]===subject)) subject="math";
+  const tabs=$("#subjects"); tabs.innerHTML="";
+  SUBJECTS.forEach(([id,label])=>{
+    const b=document.createElement("button"); b.className="pill"; b.id="subj-"+id; b.textContent=label; b.setAttribute("aria-pressed",String(id===subject));
+    b.addEventListener("click",()=>{ subject=id; store.set("ms.subject",id); renderHome(); }); tabs.appendChild(b);
+  });
+  const body=$("#home-body"); body.innerHTML="";
+  const sect=(title,list,cls,small)=>{
+    if(title){ const h=document.createElement("h3"); h.className="sect"; h.textContent=title; body.appendChild(h); }
+    const g=document.createElement("div"); g.className="games"+(cls?" "+cls:""); list.forEach(x=>g.appendChild(card(x,small))); body.appendChild(g);
+  };
+  if(subject==="math"){ sect("Basics",OPS.concat("mix"),"",false); sect("Advanced",ADV,"adv",true); }
+  else sect("",WORDS.filter(g=>GAMES[g].subject===subject),"",false);
 }
 
 /* ---------- setup ---------- */
@@ -999,17 +1189,38 @@ function renderSetup(){
 let R=null;
 const symOf = p => GAMES[p.g].sym;
 const keyOf = p => p.gen ? p.g+":"+p.q : p.g+":"+p.a+"_"+p.b;
-function factText(p){ return p.gen ? plain(p.q).replace(B,fmtAns(p.ans).trim()) : p.a+" "+symOf(p)+" "+p.b+" = "+p.c; }
+const factOf = r => (GAMES[r.g] && GAMES[r.g].fact) ? GAMES[r.g].fact(r) : r.q!=null ? plain(r.q).replace(B,fmtAns(r.ans).trim()) : r.a+" "+GAMES[r.g].sym+" "+r.b+" = "+r.c;
+function factText(p){ return factOf(p); }
 function opsInPlay(){ return game==="mix" ? cfg.mix.ops.slice() : [game]; }
 function reviewFor(p,ops){
-  return Object.keys(p.review).filter(k=>{ const r=p.review[k]; return ops.includes(r.g) && (r.q!=null || inDeck(r.g,cfg[r.g],r)); }).map(k=>{ const r=p.review[k]; return r.q!=null ? {g:r.g,gen:true,q:r.q,ans:r.ans,review:true} : {g:r.g,a:r.a,b:r.b,c:r.c,review:true}; });
+  const out=[];
+  Object.keys(p.review).forEach(k=>{
+    const r=p.review[k]; if(!ops.includes(r.g)) return;
+    if(r.q==null){ if(inDeck(r.g,cfg[r.g],r)) out.push({g:r.g,a:r.a,b:r.b,c:r.c,review:true}); return; }
+    const made = GAMES[r.g].fromReview ? GAMES[r.g].fromReview(r) : {q:r.q,ans:r.ans};
+    if(made) out.push(Object.assign({g:r.g,gen:true,review:true},made));
+  });
+  return out;
 }
+function buildKb(kind){
+  const rows=["qwertyuiop","asdfghjkl","zxcvbnm"]; if(kind==="es") rows.push("\u00E1\u00E9\u00ED\u00F3\u00FA\u00F1\u00FC");
+  const key=(k,label,cls)=>'<button class="key'+(cls?" "+cls:"")+'" data-k="'+k+'">'+label+"</button>";
+  $("#kb").innerHTML=rows.map(r=>'<div class="kr">'+r.split("").map(ch=>key(ch,ch)).join("")+"</div>").join("")+
+    '<div class="kr">'+(kind==="es" ? key("space","space","wide") : "")+key("del","&#9003;","wide del")+key("go","Enter","wide go")+"</div>";
+}
+function drawChoices(state){
+  const {p,ans}=R.cur;
+  $("#choices").innerHTML=p.options.map((o,i)=>'<button class="key'+(state && o===ans ? " ok" : state==="no" && o===R.input ? " no" : "")+'" data-opt="'+i+'">'+esc(o)+"</button>").join("");
+}
+function drawDots(){ document.querySelectorAll("#dots [data-dot]").forEach(b=>b.setAttribute("aria-pressed",String(R.input.includes(b.dataset.dot)))); }
 function startRound(){
   if(!P()){ renderWho(); show("who"); return; }
   const c=cfg[game], ops=opsInPlay(), rev=shuffle(reviewFor(P(),ops));
   R={ ops, decks:{}, skip:new Set(rev.map(keyOf)), review:rev, retry:[], count:0, right:0, wrong:0,
       missed:new Map(), seen:new Map(), input:"", cur:null, last:"", lock:false, t0:performance.now(), limit:c.time, done:false, tick:0, wait:0,
-      label:summary(game), key:sig(game), extra:GAMES[game].key||"" };
+      label:summary(game), key:sig(game), extra:GAMES[game].key||"", pad:GAMES[game].pad||"num", used:new Set(), tap:-1 };
+  $("#pad").hidden=R.pad!=="num"; $("#kb").hidden=R.pad!=="abc"; $("#choices").hidden=R.pad!=="choice"; $("#dots").hidden=R.pad!=="dots";
+  if(R.pad==="abc") buildKb(GAMES[game].keys);
   const xk=$("#xkey"); xk.hidden=!R.extra; xk.dataset.k=R.extra; xk.textContent=({pm:"+ / \u2212", dot:".", R:"R  (remainder)"})[R.extra]||"";
   $("#play-name").textContent=GAMES[game].name; $("#score").textContent="0"; $("#msg").textContent="";
   $("#clock").classList.remove("low");
@@ -1030,7 +1241,14 @@ function fresh(g){   /* a new problem for one operation, or null when its deck i
   }
   let p=null;
   if(G.kind==="gen"){
-    for(let i=0;i<10;i++){ const r=G.levels[cfg[g].level][2](); p={g,gen:true,q:r.q,ans:r.ans}; if(keyOf(p)!==R.last) break; }
+    let alt=null;
+    for(let i=0;i<12;i++){
+      const r=G.levels[cfg[g].level][2](); if(!r) continue;
+      const c=Object.assign({g,gen:true},r); c.ans=String(c.ans); p=c;
+      const k=keyOf(c); if(k===R.last) continue; if(!alt) alt=c;
+      if(!R.used.has(k)){ alt=c; break; }          /* prefer something not asked yet this round */
+    }
+    p=alt||p; if(p) R.used.add(keyOf(p));
     return p;
   }
   for(let i=0;i<8;i++){ const [a,b]=G.levels[cfg[g].level][2](); p={g,a,b,c: g==="add" ? a+b : a-b}; if(keyOf(p)!==R.last) break; }
@@ -1056,13 +1274,21 @@ function nextProblem(){
     });
     blank=opts[rnd(0,opts.length-1)];
   }
-  R.cur={p,blank,again,ans: p.gen ? String(p.ans) : String([p.a,p.b,p.c][blank])}; R.last=keyOf(p); R.input=""; R.lock=false;
+  R.cur={p,blank,again,ans: p.gen ? String(p.ans) : String([p.a,p.b,p.c][blank])}; R.last=keyOf(p); R.input=""; R.tap=-1; R.lock=false;
   const e=P() && P().review[keyOf(p)];
   $("#tag").textContent = (p.review && !again && e) ? "Review fact \u00B7 "+(e.streak|0)+" of 3 clean rounds" : (GAMES[game].hint||"");
   $("#msg").textContent="";
   drawEq();
+  if(GAMES[p.g].speak){ const t=GAMES[p.g].speak(p); say(t[0],t[1]); }
 }
 function drawEq(state){
+  const G0=GAMES[R.cur.p.g];
+  if(G0.draw){
+    const box=$("#eq"); box.className="eq text"; box.innerHTML=G0.draw(R.cur.p,state||"",R.input,R.tap);
+    if(R.pad==="choice") drawChoices(state||""); if(R.pad==="dots") drawDots();
+    return;
+  }
+  $("#eq").className="eq";
   const {p,blank,ans}=R.cur, eq=$("#eq"), n=Math.max(p.gen?2:3, fmtAns(ans).length);
   const bl='<span class="blank'+(state?" "+state:"")+'" style="--n:'+n+'">'+esc(fmtAns(state ? ans : R.input))+"</span>";
   if(p.gen){
@@ -1087,13 +1313,17 @@ function press(k){
   else if(k==="pm"){ if(R.extra!=="pm") return; s = s.charAt(0)==="-" ? s.slice(1) : "-"+s; }
   else if(k==="dot"){ if(R.extra!=="dot" || s.includes(".")) return; s = s==="" ? "0." : s+"."; }
   else if(k==="R"){ if(R.extra!=="R" || s==="" || s.includes("R")) return; s+="R"; }
-  else if(/^[0-9]$/.test(k)){ if(s.length>=7) return; s = s==="0" ? k : s==="-0" ? "-"+k : s+k; }
+  else if(k==="clear") s="";
+  else if(k==="space"){ if(R.pad!=="abc" || s==="" || s.endsWith(" ")) return; s+=" "; }
+  else if(R.pad==="abc" && /^[a-z\u00E1\u00E9\u00ED\u00F3\u00FA\u00F1\u00FC]$/.test(k)){ if(s.length>=24) return; s+=k; }
+  else if(/^[0-9]$/.test(k)){ if(R.pad!=="num" || s.length>=7) return; s = s==="0" ? k : s==="-0" ? "-"+k : s+k; }
   else return;
   R.input=s; drawEq();
 }
 function submit(){
   if(R.input==="" || R.input==="-") return;
-  const {p,ans,again}=R.cur, ok=same(R.input,ans), text=factText(p);
+  const {p,ans,again}=R.cur, G=GAMES[p.g], text=factText(p);
+  const ok = G.check ? G.check(p,R.input,R.tap) : G.draw ? R.input.trim().toLowerCase()===ans.toLowerCase() : same(R.input,ans);
   R.count++; R.lock=true;
   const key=keyOf(p);
   if(!ok) R.seen.set(key,{ok:false,p}); else if(!again && !R.seen.has(key)) R.seen.set(key,{ok:true,p});
@@ -1103,8 +1333,8 @@ function submit(){
     R.wrong++; R.missed.set(text,1);
     R.retry.push({p,due:R.count+3});
     $("#score").textContent=points(R.right,R.wrong);
-    $("#msg").textContent="You typed "+fmtAns(R.input).trim()+". 10 points off."; drawEq("no");
-    R.wait=setTimeout(nextProblem,1300);
+    $("#msg").textContent=(G.wrong ? G.wrong(p,R.input) : "You typed "+(G.draw ? R.input : fmtAns(R.input).trim())+".")+" 10 points off."; drawEq("no");
+    R.wait=setTimeout(nextProblem, G.draw ? 2200 : 1300);
   }
 }
 function loop(){
@@ -1121,7 +1351,7 @@ function loop(){
 }
 function finish(cleared){
   if(!R || R.done) return;
-  R.done=true; clearTimeout(R.wait); cancelAnimationFrame(R.tick);
+  R.done=true; clearTimeout(R.wait); cancelAnimationFrame(R.tick); hush();
   const el=Math.max(1,(performance.now()-R.t0)/1000), secs=R.limit ? Math.min(el,R.limit) : el;
   const p=P();
   if(R.count===0 || !p){ if(p){ renderHome(); show("home"); } else { renderWho(); show("who"); } return; }
@@ -1198,7 +1428,7 @@ function renderProgress(id){
   const ml=$("#pg-miss"); ml.innerHTML="";
   const facts=Object.keys(p.review).map(k=>p.review[k]).sort((x,y)=>x.streak-y.streak);
   facts.slice(0,30).forEach(r=>{ const li=document.createElement("li"); li.dataset.game=hueOf(r.g);
-    li.innerHTML=esc(r.q!=null ? plain(r.q).replace(B,fmtAns(r.ans).trim()) : r.a+" "+GAMES[r.g].sym+" "+r.b+" = "+r.c)+"<small>"+(r.streak|0)+" of 3</small>"; ml.appendChild(li); });
+    li.innerHTML=esc(factOf(r))+"<small>"+(r.streak|0)+" of 3</small>"; ml.appendChild(li); });
   $("#pg-miss-group").hidden=!facts.length;
   const rl=$("#pg-recent"); rl.innerHTML="";
   p.recent.slice(0,12).forEach(r=>{
@@ -1243,8 +1473,26 @@ $("#end").addEventListener("click",()=>finish(false));
 $("#res-home").addEventListener("click",()=>{ renderHome(); show("home"); });
 $("#res-again").addEventListener("click",startRound);
 $("#pad").addEventListener("click",e=>{ const b=e.target.closest("[data-k]"); if(b){ press(b.dataset.k); b.blur(); } });
+$("#kb").addEventListener("click",e=>{ const b=e.target.closest("[data-k]"); if(b){ press(b.dataset.k); b.blur(); } });
+$("#choices").addEventListener("click",e=>{ const b=e.target.closest("[data-opt]"); if(!b || !R || R.done || R.lock) return; R.input=R.cur.p.options[+b.dataset.opt]; submit(); });
+$("#dots").addEventListener("click",e=>{
+  if(!R || R.done || R.lock) return;
+  const d=e.target.closest("[data-dot]"), k=e.target.closest("[data-k]");
+  if(d){ const n=d.dataset.dot; R.input = R.input.includes(n) ? R.input.replace(n,"") : (R.input+n).split("").sort().join(""); drawEq(); }
+  else if(k) press(k.dataset.k);
+});
+$("#eq").addEventListener("click",e=>{
+  if(!R || R.done || !R.cur) return;
+  const sb=e.target.closest("[data-say]"), tw=e.target.closest("[data-tap]"), G=GAMES[R.cur.p.g];
+  if(sb && G.says){ const x=G.says(R.cur.p)[+sb.dataset.say]; if(x) say(x[1],x[2]); return; }
+  if(tw && !R.lock && R.cur.p.words){ R.tap=+tw.dataset.tap; R.input=R.cur.p.words[R.tap]; submit(); }
+});
 document.addEventListener("keydown",e=>{
   if($("#play").hidden) return;
+  if(R && R.pad==="abc"){
+    if(e.key.length===1 && /[a-z\u00E1\u00E9\u00ED\u00F3\u00FA\u00F1\u00FC]/i.test(e.key)){ press(e.key.toLowerCase()); return; }
+    if(e.key===" "){ e.preventDefault(); press("space"); return; }
+  }
   if(/^[0-9]$/.test(e.key)) press(e.key);
   else if(e.key==="-") press("pm"); else if(e.key===".") press("dot"); else if(e.key==="r"||e.key==="R") press("R");
   else if(e.key==="Backspace"){ e.preventDefault(); press("del"); }
