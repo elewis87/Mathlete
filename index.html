@@ -649,11 +649,35 @@ const hueOf = g => (GAMES[g] && GAMES[g].hue) || g;
 /*LA-START*/
 /* ---------- words: spelling, parts of speech, Spanish, Braille ---------- */
 const canSpeak = "speechSynthesis" in window && typeof window.SpeechSynthesisUtterance!=="undefined";
-function say(text,lang){
+let speechOK = canSpeak ? null : false;      /* null = not proven yet, true = heard to start, false = silent on this device */
+let voices=[], utter=null, sayTimer=0, sayWatch=0;
+function loadVoices(){ try{ voices=window.speechSynthesis.getVoices()||[]; }catch(e){ voices=[]; } }
+if(canSpeak){ loadVoices(); try{ window.speechSynthesis.addEventListener("voiceschanged",loadVoices); }catch(e){} }
+function speechFailed(){ speechOK=false; if(R && !R.done && R.cur && GAMES[R.cur.p.g].draw && !R.lock) drawEq(); }
+function say(text,lang,retry){
   if(!canSpeak) return;
-  try{ window.speechSynthesis.cancel(); const u=new window.SpeechSynthesisUtterance(text); u.lang=lang||"en-US"; u.rate=0.85; window.speechSynthesis.speak(u); }catch(e){}
+  if(retry) speechOK=null;
+  if(speechOK===false) return;
+  lang=lang||"en-US";
+  const go=()=>{
+    try{
+      const u=new window.SpeechSynthesisUtterance(text); u.lang=lang; u.rate=0.85; u.volume=1;
+      if(!voices.length) loadVoices();
+      const v=voices.find(x=>String(x.lang).replace("_","-")===lang) || voices.find(x=>String(x.lang).slice(0,2)===lang.slice(0,2));
+      if(v) u.voice=v;
+      u.onstart=()=>{ clearTimeout(sayWatch); const was=speechOK; speechOK=true; if(was===false && R && !R.done && R.cur && !R.lock) drawEq(); };
+      utter=u;                                     /* keep a reference so Safari does not drop it mid-word */
+      try{ if(window.speechSynthesis.paused) window.speechSynthesis.resume(); }catch(e){}
+      window.speechSynthesis.speak(u);
+      if(speechOK===null){ clearTimeout(sayWatch); sayWatch=setTimeout(()=>{ if(speechOK===null) speechFailed(); },4000); }
+    }catch(e){ speechFailed(); }
+  };
+  clearTimeout(sayTimer);
+  /* Safari drops a word spoken right after cancel(), so only cancel when something is still talking, and wait a beat */
+  if(window.speechSynthesis.speaking || window.speechSynthesis.pending){ try{ window.speechSynthesis.cancel(); }catch(e){} sayTimer=setTimeout(go,150); }
+  else go();
 }
-function hush(){ if(canSpeak){ try{ window.speechSynthesis.cancel(); }catch(e){} } }
+function hush(){ clearTimeout(sayTimer); clearTimeout(sayWatch); if(canSpeak){ try{ window.speechSynthesis.cancel(); }catch(e){} } }
 const tb = (state,text) => '<span class="blank tblank'+(state?" "+state:"")+'">'+esc(text)+"</span>";
 const sayBtns = list => '<div class="row mid">'+list.map((s,i)=>'<button class="pill" data-say="'+i+'">'+esc(s[0])+"</button>").join("")+"</div>";
 const an = w => (/^[aeiou]/.test(w) ? "an " : "a ")+w;
@@ -741,12 +765,12 @@ const brWriteQ = level => { const w=anyOf(BRSETS[level].split("")); return {q:"d
 const word2 = r => r.q.split("|")[1];
 
 Object.assign(GAMES, {
-  spell:{ name:"Spelling Bee", sym:"Abc", dot:"A", kind:"gen", subject:"la", hue:"add", pad:"abc", hint:"Listen to the word, then spell it",
+  spell:{ name:"Spelling Bee", sym:"Abc", dot:"A", kind:"gen", subject:"la", hue:"add", pad:"abc", hint:"Listen to the word, then spell it", loud:true,
     levels:SPELL.map((list,i)=>L("Grade "+(i+1), list[2].split("|")[0]+", "+list[9].split("|")[0], ()=>spellQ(i))),
     says(p){ return [["Hear the word",p.ans,"en-US"],["Hear it in a sentence",p.q.replace(B,p.ans),"en-US"]]; },
     speak(p){ return [p.ans,"en-US"]; },
     draw(p,state,input){ return tb(state, state ? p.ans : input)+'<p class="sent">'+esc(state ? p.q.replace(B,p.ans) : p.q.replace(B,"______"))+"</p>"+
-      (canSpeak ? sayBtns(this.says(p)) : capHtml("Unscramble: "+esc(p.ans.toLowerCase().split("").sort().join(" ")))); },
+      (canSpeak ? sayBtns(this.says(p)) : "")+(speechOK===false ? capHtml("No sound on this device. Unscramble: "+esc(p.ans.toLowerCase().split("").sort().join(" "))) : ""); },
     fact:r=>r.ans, fromReview:r=>({q:r.q, ans:r.ans}) },
   pos:{ name:"Parts of Speech", sym:"n. v.", dot:"N", kind:"gen", subject:"la", hue:"div", pad:"choice", hint:"Name the part of speech of the highlighted word",
     levels:[L("Nouns and verbs","dog, ran",()=>posQ(0)), L("Add adjectives","red, tall",()=>posQ(1)), L("Add adverbs","quickly",()=>posQ(2)), L("Add pronouns and prepositions","she, under",()=>posQ(3)), L("All eight parts of speech","and, wow",()=>posQ(4))],
@@ -766,10 +790,10 @@ Object.assign(GAMES, {
     levels:VOCAB.map((t,i)=>L(t[0], t[1][0][0]+", "+t[1][1][0], ()=>esQ("say",i))).concat([L("Everything","all topics",()=>esQ("say",VOCAB.length))]),
     draw(p,state){ return capHtml("How do you say this in Spanish?")+'<p class="prompt">'+esc(p.en)+"</p>"; },
     wrong:(p,input)=>"You picked "+input+".", fact:r=>esFact("say",r), fromReview:r=>esBack("say",r) },
-  eslisten:{ name:"Spanish Listening", sym:"¿?", dot:"L", kind:"gen", subject:"es", hue:"mul", pad:"choice", hint:"Listen, then pick what it means",
+  eslisten:{ name:"Spanish Listening", sym:"¿?", dot:"L", kind:"gen", subject:"es", hue:"mul", pad:"choice", hint:"Listen, then pick what it means", loud:true,
     levels:VOCAB.map((t,i)=>L(t[0], t[1][0][1]+", "+t[1][1][1], ()=>esQ("hear",i))).concat([L("Everything","all topics",()=>esQ("hear",VOCAB.length))]),
     says(p){ return [["Hear it again",p.es,"es-MX"]]; }, speak(p){ return [p.es,"es-MX"]; },
-    draw(p,state){ return capHtml("What does this mean in English?")+((canSpeak && !state) ? sayBtns(this.says(p)) : '<p class="prompt">'+esc(p.es)+"</p>"); },
+    draw(p,state){ return capHtml("What does this mean in English?")+((speechOK===false || state) ? '<p class="prompt">'+esc(p.es)+"</p>" : "")+((canSpeak && !state) ? sayBtns(this.says(p)) : ""); },
     wrong:(p,input)=>"You picked "+input+".", fact:r=>esFact("hear",r), fromReview:r=>esBack("hear",r) },
   eswrite:{ name:"Spanish Spelling", sym:"ñ", dot:"ñ", kind:"gen", subject:"es", hue:"sub", pad:"abc", keys:"es", hint:"Type the Spanish word, with its accent marks",
     levels:VOCAB.map((t,i)=>L(t[0], t[1][0][0]+", "+t[1][1][0], ()=>esQ("write",i))).concat([L("Everything","all topics",()=>esQ("write",VOCAB.length))]),
@@ -1120,7 +1144,7 @@ function renderSetup(){
   body.innerHTML="";
   const due=reviewFor(P(),opsInPlay()).length;
   if(due){ body.appendChild(group("Review first", due+(due===1?" missed fact opens":" missed facts open")+" this round. Each one keeps coming back until it is answered correctly 3 rounds in a row.")); }
-  if(G.hint){ body.appendChild(group("How it works", G.hint+".")); }
+  if(G.hint){ body.appendChild(group("How it works", G.hint+"."+(G.loud ? " This game talks, so turn the volume up and switch silent mode off." : ""))); }
   if(G.kind==="mix"){
     const g1=group("Operations in the mix", "Each one uses the level chosen in its own game.");
     const box=document.createElement("div"); box.className="levels";
@@ -1484,7 +1508,7 @@ $("#dots").addEventListener("click",e=>{
 $("#eq").addEventListener("click",e=>{
   if(!R || R.done || !R.cur) return;
   const sb=e.target.closest("[data-say]"), tw=e.target.closest("[data-tap]"), G=GAMES[R.cur.p.g];
-  if(sb && G.says){ const x=G.says(R.cur.p)[+sb.dataset.say]; if(x) say(x[1],x[2]); return; }
+  if(sb && G.says){ const x=G.says(R.cur.p)[+sb.dataset.say]; if(x) say(x[1],x[2],true); return; }
   if(tw && !R.lock && R.cur.p.words){ R.tap=+tw.dataset.tap; R.input=R.cur.p.words[R.tap]; submit(); }
 });
 document.addEventListener("keydown",e=>{
